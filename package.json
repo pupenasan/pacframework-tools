@@ -18,5 +18,10 @@
   "bugs": {
     "url": "https://github.com/pupenasan/pacframework-tools/issues"
   },
-  "homepage": "https://github.com/pupenasan/pacframework-tools#readme"
+  "homepage": "https://github.com/pupenasan/pacframework-tools#readme",
+  "dependencies": {
+    "ini": "^2.0.0",
+    "xlsx": "^0.17.4",
+    "xml-js": "^1.6.11"
+  }
 }
