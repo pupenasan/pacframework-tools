@@ -4,7 +4,7 @@
   "description": "tools for PACFramework ",
   "main": "index.js",
   "scripts": {
-    "test": "npm test"
+    "test": "node test"
   },
   "repository": {
     "type": "git",
@@ -20,7 +20,9 @@
   },
   "homepage": "https://github.com/pupenasan/pacframework-tools#readme",
   "dependencies": {
+    "crypto-js": "^4.1.1",
     "ini": "^2.0.0",
+    "nano": "^9.0.5",
     "xlsx": "^0.17.4",
     "xml-js": "^1.6.11"
   }

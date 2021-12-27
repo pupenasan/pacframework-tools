@@ -1,111 +1,99 @@
 /* модуль для конвертування змісту проекту TIA в Master Data
-plcvars_to_tags 
-VARCFG_to_tags
-opts_to_tag
-VARHMI_to_tags
-plc_to_chs
-CHHMI_to_chs
-parsedb
-parsesection
-parsemember
-parsesingle
-addaddr
-parseudtall
-parsetypeudt
-getAndReplacePlaceholders
 */
 
 const fs = require ('fs');
 const xmlparser = require('xml-js'); //https://www.npmjs.com/package/xml-js
-const masterdatattools = require('./masterdatatools');
-const path = require('path');
+const masterdatatools = require('./masterdatatools');
+const ini = require('ini');//https://github.com/npm/ini#readme 
+const config = ini.parse (fs.readFileSync('./config.ini', 'utf-8'));
 
-masterdatattools.opts.logfile = 'tiatools.log'; 
-masterdatattools.opts.source = 'tiatools';
+const opts = {
+  logpath: 'log',
+  logfile: 'tiaparsetools.log',
+  clsiddefault: {
+    var : 0x10F0,
+    divar : 0x1010,
+    dovar : 0x1020,
+    aivar : 0x1030,
+    aovar : 0x1040,
+    ch : 0x00F0,
+    chdi : 0x0010,
+    chdo : 0x0020,
+    chai : 0x0030,
+    chao : 0x0040,
+    act : 0x20F0
+  }
+};
+
+masterdatatools.opts.logfile = 'tiaparsetools.log'; 
+masterdatatools.opts.source = 'tiaparsetools';
+masterdatatools.opts.logpath = opts.logpath
 
 
 //скорочені назви функцій
-const logmsg = masterdatattools.logmsg;
-const writetolog = masterdatattools.writetolog;
-const syncobs = masterdatattools.syncobs;
+const logmsg = masterdatatools.logmsg;
+const writetolog = masterdatatools.writetolog;
+const syncobs = masterdatatools.syncobs;
 
-//тільки для тестування, закоментувати при використанні 
-test();
+//парсить усі файли
+function tiaparseall () {
+  const tiasoucefiles = config.tiaparsetools.pathsource + '/';
+  const tiaresultfiles = config.tiaparsetools.pathresult + '/';
 
+  for (optname in opts.clsiddefault) {
+    opts.clsiddefault[optname] = config.tiaparsetools.clsiddefault[optname]
+  }
 
-function test () {
-  //test_plc_tochs ();
-  test_vars_totags ();
-  //test_plcacts_toacts (); 
-} 
-
-function test_plcacts_toacts () {
-  let pathfiles = './exampledata/';
-  
-  //отримання мастерданих про теги
-  filemaster = pathfiles + 'acts.json';
-  if (!fs.existsSync(filemaster)) {
-    masteracts = {};
-  } else {
-    let content = fs.readFileSync (filemaster,'utf8');
-    masteracts = JSON.parse (content);  
+  logmsg ('-------------------- Отримання мастерданих з TIA про канали'); 
+  let plchs = {iocfg:{}};
+  let listfiles =  {
+    udtfiles : config.tiaparsetools.ch_udtfiles.replace(/ /g, '').split(','),
+    xmlcfgfiles : config.tiaparsetools.ch_xmlcfgfiles.replace(/ /g, '').split(','),
+    xmlhmifiles : config.tiaparsetools.ch_xmlhmifiles.replace(/ /g, '').split(',')
   }  
+  plc_to_chs (plchs, tiasoucefiles, listfiles);
+  logmsg ('plc_to_chs оброблено');
 
-  let acttypes = ['ACTTR', 'VLVA', 'VLVD', 'VLVD0', 'VLVD1', 'VLVD5', 'VLVS', 'DRV2', 'DRVD', 'DRVS'];
-  let listfiles = {udtfiles: [], xmlcfgfiles:['ACT'], xmlhmifiles:['ACTH']};
+  logmsg ('-------------------- Отримання даних про відображення каналів на модулі'); 
+  PLCMAPS_to_chs (plchs, tiasoucefiles + 'PLCMAPS.scl')
+  logmsg ('PLCMAPS_to_chs оброблено'); 
+
+  logmsg ('-------------------- Отримання мастерданих з TIA про теги'); 
+  plctags = {};
+  listfiles =  {udtfiles : config.tiaparsetools.var_udtfiles.replace(/ /g, '').split(','),
+      xmlcfgfiles : config.tiaparsetools.var_xmlcfgfiles.replace(/ /g, '').split(','),
+      xmlhmifiles : config.tiaparsetools.var_xmlhmifiles.replace(/ /g, '').split(',')
+  }
+  plcvars_to_tags (plctags, tiasoucefiles, listfiles);
+  logmsg ('plcvars_to_tags оброблено');     
+
+  logmsg ('-------------------- Формування таблиці відображення тегів на канали'); 
+  masterdatatools.chsmap_fromplc (plchs, plctags);
+  masterdatatools.iomapplcform_togenform (plchs);
+  fs.writeFileSync (tiaresultfiles + 'plc_chs.json', JSON.stringify (plchs), 'utf8');
+  fs.writeFileSync (tiaresultfiles + 'plc_tags.json', JSON.stringify (plctags), 'utf8');
+
+  logmsg ('-------------------- Отримання мастерданих з TIA про ВМ'); 
+  plcacts = {};
+  let acttypes = config.tiaparsetools.act_udtfiles.replace(/ /g, '').split(',');
+  listfiles = {
+    udtfiles: [], 
+    xmlcfgfiles : config.tiaparsetools.act_xmlcfgfiles.replace(/ /g, '').split(','),
+    xmlhmifiles : config.tiaparsetools.act_xmlhmifiles.replace(/ /g, '').split(',')
+  };
   listfiles.udtfiles = []
-  for (acttype of acttypes) {
+  for (let acttype of acttypes) {
     listfiles.udtfiles.push (acttype + '_STA');
     listfiles.udtfiles.push (acttype + '_CFG');
     listfiles.udtfiles.push (acttype + '_ALM');
   }
   listfiles.udtfiles.push ('ACTTR_CMD');
   listfiles.udtfiles.push ('ACTTR_PRM');
-  console.log (listfiles);
-  plcacts_toacts(masteracts, pathfiles, listfiles);
-  fs.writeFileSync (filemaster, JSON.stringify (masteracts), 'utf8');
-} 
-
-function test_vars_totags () {
-  let pathfiles = './exampledata/';
-  //отримання мастерданих про теги
-  filemaster = pathfiles + 'tags.json';
-  if (!fs.existsSync(filemaster)) {
-    mastertags = {};
-  } else {
-    let content = fs.readFileSync (filemaster,'utf8');
-    mastertags = JSON.parse (content);  
-  }  
-  
-  let listfiles = {
-    udtfiles: ["AIVAR_STA", "AIVAR_VALPRCSTA2", "AOVAR_STA", "DOVAR_STA", "DIVAR_STA",
-    "AIVAR_CFG", "DIVAR_CFG", "AOVAR_CFG", "DOVAR_CFG", "NAIVAR_CFG", "NDIVAR_CFG", "NAOVAR_CFG", "NDOVAR_CFG", 
-    "AIVAR_PRM", "DIVAR_PRM", "AOVAR_PRM", "DOVAR_PRM"],
-    xmlcfgfiles : ["VAR"],
-    xmlhmifiles: ["AIH", "DIH", "AOH", "DOH"]
-  }
-
-  plcvars_to_tags (mastertags, pathfiles, listfiles);
-  fs.writeFileSync (filemaster, JSON.stringify (mastertags), 'utf8');
-} 
-
-function test_plc_tochs() {
-  let pathfiles = './exampledata/';
-  //отримання мастерданих про канали
-  filemaster = pathfiles + 'chs.json';
-  if (!fs.existsSync(filemaster)) {
-    masterchs = {};
-  } else {
-    let content = fs.readFileSync (filemaster,'utf8');
-    masterchs = JSON.parse (content);  
-  } 
-  if (!masterchs.iocfg) masterchs.iocfg = {};
-  masterchs.iocfg.aibias = 200;
-  masterchs.iocfg.aobias = 200;
-  masterchs.iocfg.dibias = 0;
-  masterchs.iocfg.dobias = 0;
-  plc_to_chs (masterchs, pathfiles);
-  fs.writeFileSync (filemaster, JSON.stringify (masterchs), 'utf8');
+  plcacts_toacts(plcacts, tiasoucefiles, listfiles);
+  logmsg ('plcacts_toacts оброблено');    
+  fs.writeFileSync (tiaresultfiles + 'plc_acts.json', JSON.stringify (plcacts), 'utf8');
+  writetolog (1);  
+  return {chs: plchs, tags: plctags, acts: plcacts}
 }
 
 //заносить інформацію про теги в masteracts з даних про VAR
@@ -239,7 +227,6 @@ function ACTCFG_to_acts (parsedata, masteracts) {
 //заносить інформацію про теги в mastertags з даних про VAR
 //ромзіщених в файлах listfiles по шляху pathfiles
 function plcvars_to_tags (mastertags, pathfiles, listfiles) {
-  /*ID	TAGNAME	DESCRIPTION	TYPE	SRCADR	DEV	MODNMB	CH	MODNM	CHID	SUBTYPE	ALTNAME	SUBS	Note	EFIX	MODID	PLACE	ACTTR	ACTTYPE	UNIT	FRMT	SCALE	TRSCL	TOPN*/
   let xmlcontent, parsedata;
   parsedata = {};
 
@@ -248,7 +235,7 @@ function plcvars_to_tags (mastertags, pathfiles, listfiles) {
   let udtfiles = listfiles.udtfiles;
   for (let i=0; i<udtfiles.length; i++) {
     udtfiles[i] = pathfiles + udtfiles[i] + '.udt';
-    logmsg (`Отримую структуру з ${ udtfiles[i]}`);   
+    logmsg (`Отримую структуру з ${ udtfiles[i]}`, 0);   
     parsetypeudt (udtfiles[i], mastertags.types);
   }
  
@@ -258,7 +245,7 @@ function plcvars_to_tags (mastertags, pathfiles, listfiles) {
     xmlcfgfiles[i] = pathfiles + xmlcfgfiles[i];
     logmsg (`Читаю файл ${xmlcfgfiles[i] + '.xml' }`);   
     xmlcontent = fs.readFileSync (xmlcfgfiles[i] + '.xml' ,'utf8');
-    logmsg (`Отримую інфорфмацію з VARCFG`);
+    logmsg (`Отримую інфорфмацію з VARCFG`, 0);
     parsedata = {};   
     dbcmplt = parsedb (xmlcontent, parsedata);    
     fs.writeFileSync (pathfiles + 'var_parse.json', JSON.stringify (dbcmplt), 'utf8');
@@ -281,7 +268,7 @@ function plcvars_to_tags (mastertags, pathfiles, listfiles) {
     logmsg (`Файл парсингу записано в ${pathfiles + 'var_parse.json'}`); 
     VARHMI_to_tags (dbcmplt, mastertags);
   }   
-  writetolog (1); 
+  //writetolog (1); 
   return
 }
 //переведення db, adr {byte, bit} string
@@ -298,9 +285,11 @@ function adr_to_string (adr, dbnum) {
 //отримання інформації з VARCFG
 function VARCFG_to_tags (dbcmplt, mastertags) {
   let tagtypes = {AIVAR_CFG:"AI", DIVAR_CFG:"DI",DOVAR_CFG:"DO",AOVAR_CFG:"AO",
-  NAIVAR_CFG:"AI", NDIVAR_CFG:"DI", NDOVAR_CFG:"DO", NAOVAR_CFG:"AO",};//NDI, NDO, NAI, NAO
+  NAIVAR_CFG:"NAI", NDIVAR_CFG:"NDI", NDOVAR_CFG:"NDO", NAOVAR_CFG:"NAO",};//NDI, NDO, NAI, NAO
   if (typeof (mastertags.tags) !== "object") {mastertags.tags = {}};//за тегами
-  if (typeof (mastertags.ids) !== "object") {mastertags.ids = {}};//індексація за ID
+  mastertags.ids = {};//індексація за ID
+  mastertags.twinsrepo = {};//індексація за CLSID:ID
+
   let isrez = false;
   //------------- спочатку обробляємо з dbcmplt по назві тегу
   for (tagname in dbcmplt.data) {
@@ -308,23 +297,43 @@ function VARCFG_to_tags (dbcmplt, mastertags) {
     let tag = {};
     tag.tagname = tagname;
     tag.id = parsetag.ID.startval;
-    tag.clsid = plcconst_to_dec (parsetag.CLSID.startval);;
-    tag.descr = parsetag.descr;  
-    tag.plccfg = parsetag;
-    //------------------- обробка plccfg
-    delete tag.plccfg.descr; //видалення щоб не дублювати
-    let tagtype = mastertags.types[tag.plccfg.type];
-    tag.type = tagtypes [tag.plccfg.type];
+    tag.clsid = plcconst_to_dec (parsetag.CLSID.startval);
+    tag.type = tagtypes [parsetag.type];
     tag.hmiprefix = tag.type + 'H';//префікс для змінних HMI
     //резервні змінні мітимо, щоб десь не аналізувати 
     if (tag.tagname.toLowerCase().substring(0,3) === 'rez') {
       isrez=true;
     }
+    if (typeof tag.clsid !== 'number' || tag.clsid <= 0 ){
+      switch (tag.type) {
+        case 'DI':
+          tag.clsid = parseInt(opts.clsiddefault.divar, 16)  
+          break;
+        case 'DO':
+          tag.clsid = parseInt(opts.clsiddefault.dovar, 16)
+          break;
+        case 'AI':
+          tag.clsid = parseInt(opts.clsiddefault.aivar, 16)
+          break;
+        case 'AO':
+          tag.clsid = parseInt(opts.clsiddefault.aovar, 16)
+          break;      
+        default:
+          tag.clsid = parseInt(opts.clsiddefault.var, 16)          
+          break;
+      } 
+    } 
+    tag.descr = parsetag.descr;  
+    tag.plccfg = parsetag;
+    tag.state = 'valid';
+    //------------------- обробка plccfg
+    delete tag.plccfg.descr; //видалення щоб не дублювати
     //якщо є значення каналу за замвоченням пишемо в меп
     if (tag.plccfg.CHIDDF.startval) {
       tag.chid = tag.plccfg.CHIDDF.startval 
     } 
     //перебор полів структури 
+    let tagtype = mastertags.types[tag.plccfg.type];
     let descrorig = '', res = {}; 
     for (let fieldname in parsetag) {
       if (typeof parsetag[fieldname] !== 'object') continue;
@@ -379,7 +388,7 @@ function VARCFG_to_tags (dbcmplt, mastertags) {
       mastertag = mastertags.tags[tagname];
     } else if (mastertags.ids[tag.id]) { // якщо не знаходимо, то шукаємо за ID
       let oldtagname = mastertags.ids[tag.id];
-      logmsg (`Тег ${oldtagname} з id ${tag.id} переіменовано в ${tag.name}`);
+      logmsg (`Тег ${oldtagname} з id ${tag.id} переіменовано в ${tag.name}`, 0);
       mastertag = mastertags.tags[tagname];
     } else { //новий тег
       mastertags.tags[tagname] = {}; 
@@ -388,7 +397,20 @@ function VARCFG_to_tags (dbcmplt, mastertags) {
     //синхронізація об'єктів
     syncobs (mastertag, tag);
     mastertags.ids[mastertag.id] = mastertag.tagname;
-  } 
+    //оновлення репозиторію
+    let clsid = mastertag.clsid;
+    if (!mastertags.twinsrepo[clsid]) mastertags.twinsrepo[clsid] = {};
+    repoclsid = mastertags.twinsrepo[clsid];
+    repoclsid[mastertag.id] = {ref : 'tags/' + mastertag.tagname, reftype: 'var' , alias: mastertag.tagname}
+ 
+    //console.log (mastertag.clsid); process.exit()    
+  }
+  //Позначення усіх обєктів що не увійшли до репозиторію як inv_old
+  for (tagname in mastertags.tags){
+    if (!dbcmplt.data[tagname]){
+      mastertags.tags[tagname].state = 'inv_old';
+    }
+  }   
 }
 
 //з масиву опцій opts формує тривоги для tag та act, 
@@ -457,15 +479,16 @@ function VARHMI_to_tags (dbcmplt, mastertags) {
 }
 
 //парсити усі дані з PLC в Masterdata
-function plc_to_chs (masterchs, pathfiles) {
+function plc_to_chs (masterchs, pathfiles, listfiles) {
   let xmlcontent, parsedata, chs;
   parsedata = {};
   
   //отримання структур
   if (typeof (masterchs.types) !== "object") {masterchs.types = {}};//пошук структур якщо вони вже є в метаданих
-  let udtfiles = ["CH_STA", "CH_CFG", "CH_HMI", "CH_BUF", "CH_STA"]
+  let udtfiles = listfiles.udtfiles;
   for (let i=0; i<udtfiles.length; i++) {
     udtfiles[i] = pathfiles + udtfiles[i] + '.udt'
+    logmsg (`Отримую структуру з ${udtfiles[i]}`);       
     parsetypeudt (udtfiles[i], masterchs.types);
   } 
  
@@ -473,9 +496,12 @@ function plc_to_chs (masterchs, pathfiles) {
   if (!masterchs.chs) masterchs.chs = {};
   chs = masterchs.chs; 
   let filename = pathfiles + 'CH.xml';
+  logmsg (`Читаю файл ${filename}`);    
   xmlcontent = fs.readFileSync (filename,'utf8');
-  dbcmplt = parsedb (xmlcontent, parsedata);
+  logmsg (`Отримую інфорфмацію з CHHMI`); 
+  dbcmplt = parsedb (xmlcontent, parsedata);  
   CHHMI_to_chs (dbcmplt,chs);
+  //writetolog (1);
 } 
 
 //перетворення рзпарсеного блоку CHHMI в стандартизовану структуру chs   
@@ -484,18 +510,27 @@ function CHHMI_to_chs (parsedata, chs) {
   let CHDOs = parsedata.data.CHDO.data;
   let CHAIs = parsedata.data.CHAI.data;
   let CHAOs = parsedata.data.CHAO.data;
+  if (typeof (chs.statistic) !== "object") {
+    chs.statistic = {
+      dicnt:CHDIs.length-1, 
+      docnt:CHDOs.length-1, 
+      aicnt:CHAIs.length-1, 
+      aocnt:CHAOs.length-1
+    }
+  }
   if (typeof (chs.chdis) !== "object") {chs.chdis = {}} 
   if (typeof (chs.chdos) !== "object") {chs.chdos = {}} 
   if (typeof (chs.chais) !== "object") {chs.chais = {}} 
-  if (typeof (chs.chaos) !== "object") {chs.chaos = {}} 
+  if (typeof (chs.chaos) !== "object") {chs.chaos = {}}
+  
   let adrbyte, adrbit;
   for (let i=0; i<CHDIs.length; i++) {
     let id = i.toString();
     if (typeof chs.chdis[id] === "undefined") chs.chdis[id]={};
     let ch = chs.chdis[id];   
     ch.id = id;
-    adrbyte = +masterchs.iocfg.dibias + Math.trunc(((+id-1)/8)); adrbit = (+id - 1) % 8; 
-    ch.adr = 'I' + adrbyte + '.' + adrbit;
+    //adrbyte = +chs.iocfg.dibias + Math.trunc(((+id-1)/8)); adrbit = (+id - 1) % 8; 
+    //ch.adr = 'I' + adrbyte + '.' + adrbit;
     if (typeof chs.chdis[id].plchmi === "undefined") chs.chdis[id].plchmi={};
     let chhmi = chs.chdis[id].plchmi
     chhmi.type = "CH_HMI";
@@ -506,8 +541,8 @@ function CHHMI_to_chs (parsedata, chs) {
     if (typeof chs.chdos[id] === "undefined") chs.chdos[id]={};
     let ch = chs.chdos[id];
     ch.id = id;
-    adrbyte = +masterchs.iocfg.dobias + Math.trunc(((+id-1)/8)); adrbit = (+id - 1) % 8; 
-    ch.adr = 'Q' + adrbyte + '.' + adrbit;       
+    //adrbyte = +masterchs.iocfg.dobias + Math.trunc(((+id-1)/8)); adrbit = (+id - 1) % 8; 
+    //ch.adr = 'Q' + adrbyte + '.' + adrbit;       
     if (typeof chs.chdos[id].plchmi === "undefined") chs.chdos[id].plchmi={};
     let chhmi = chs.chdos[id].plchmi
     chhmi.type = "CH_HMI";
@@ -518,8 +553,8 @@ function CHHMI_to_chs (parsedata, chs) {
     if (typeof chs.chais[id] === "undefined") chs.chais[id]={};
     let ch = chs.chais[id];   
     ch.id = id;
-    adrbyte = +masterchs.iocfg.aibias + (+id - 1)*2; 
-    ch.adr = 'IW' + adrbyte;     
+    //adrbyte = +masterchs.iocfg.aibias + (+id - 1)*2; 
+    //ch.adr = 'IW' + adrbyte;     
     if (typeof chs.chais[id].plchmi === "undefined") chs.chais[id].plchmi={};
     let chhmi = chs.chais[id].plchmi
     chhmi.type = "CH_HMI";
@@ -530,14 +565,63 @@ function CHHMI_to_chs (parsedata, chs) {
     if (typeof chs.chaos[id] === "undefined") chs.chaos[id]={};
     let ch = chs.chaos[id];   
     ch.id = id;
-    adrbyte = +masterchs.iocfg.aobias + (+id - 1)*2; 
-    ch.adr = 'QW' + adrbyte;       
+    //adrbyte = +masterchs.iocfg.aobias + (+id - 1)*2; 
+    //ch.adr = 'QW' + adrbyte;       
     if (typeof chs.chaos[id].plchmi === "undefined") chs.chaos[id].plchmi={};
     let chhmi = chs.chaos[id].plchmi
     chhmi.type = "CH_HMI";
     chhmi.adr = 'DB' + parsedata.dbnum + '.' + CHAOs[i].adr.byte + "." + CHAOs[i].adr.bit
   }  
-} 
+}
+
+//парсити дані з PLCMAPS
+function PLCMAPS_to_chs (masterchs, filename) {
+  if (!masterchs.iomapplc) masterchs.iomapplc = {genform:{},plcform:[]};
+  if (!masterchs.chs) masterchs.chs = {};
+  if (!masterchs.chs.statistic) masterchs.chs.statistic = {};
+  
+
+  chs = masterchs.chs; 
+  logmsg (`Читаю файл ${filename}`);    
+  let txtcontent = fs.readFileSync (filename,'utf8');  
+  let arcontent = txtcontent.replace(/[\r\n\t]/g,'') .split (';');
+  let curmodule = ''; 
+  let modtypestr = '';
+  masterchs.chs.modulscnt =0;
+  
+  iomapplc = masterchs.iomapplc.plcform; 
+  //парсимо кожний рядок
+  for (let row of arcontent) {
+    if ((row.search ('//')>0) && (row.search ('DBMODULES')>0)) {
+      row = row.replace ('//', '').trim();  
+      curmodule = row.split (' ')[0];
+      modtypestr = row.split (' ')[1];
+      //masterchs.moduls[curmodule] = {chdis:[], chdos:[], chais:[], chaos:[]};
+      masterchs.chs.modulscnt ++;      
+    } 
+    rowar = row.split(':=');
+    let val = '';
+    if (rowar.length === 2) {
+      val = rowar[1].trim().replace ('16#','');
+      //console.log (val);
+    } 
+    if (row.search (/MODULES\[/)>=0 && curmodule.length>1) {
+      let number = rowar[0].split ('[')[1].split(']')[0];
+      if (typeof (iomapplc[number]) !== 'object') iomapplc[number] = {
+        MODID: curmodule,
+        MODTYPESTR: modtypestr 
+      };
+      //console.log (row);  
+      if (row.search('.TYPE')>=0) iomapplc[number].MODTYPE = val;
+      if (row.search('.CHCNTS')>=0) iomapplc[number].CHCNTS = val;
+      if (row.search(/.STRTNMB\[0\]/)>=0) iomapplc[number].STRTNMB0 = val;                
+      if (row.search(/.STRTNMB\[1\]/)>=0) iomapplc[number].STRTNMB1 = val; 
+      if (row.search(/.STRTNMB\[2\]/)>=0) iomapplc[number].STRTNMB2 = val; 
+      if (row.search(/.STRTNMB\[3\]/)>=0) iomapplc[number].STRTNMB3 = val; 
+    }
+  }
+  //console.log (masterchs.chs.modulscnt);
+}
 
 // --------------- DB XML -----------------------------
 //парсить xmlcontent і заносить дані полів по DB parsedata та dbcmplt
@@ -795,6 +879,8 @@ function getAndReplacePlaceholders (txt, startsymb, endsymb, replacer) {
 }  
 
 module.exports = {
-  parsedb, parsetypeudt, parseudtall
+  plcacts_toacts, plcvars_to_tags, plc_to_chs, PLCMAPS_to_chs, 
+  parsedb, parsetypeudt, parseudtall, 
+  tiaparseall, opts
 };
 
