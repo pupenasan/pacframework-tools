@@ -40,6 +40,8 @@ switch (process.argv[2]) {
   case 'updateui2':
     ui2tools.updateui2(twinname, false);//(twinname, true);
     break;
+  case '':
+    break;   
   default:
     console.log ('Немає такої утиліти')
     break;
