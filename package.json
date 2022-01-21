@@ -1,6 +1,6 @@
 {
   "name": "pacframework-tools",
-  "version": "0.0.4",
+  "version": "0.0.17",
   "description": "tools for PACFramework ",
   "main": "index.js",
   "scripts": {
@@ -22,6 +22,7 @@
   "dependencies": {
     "crypto-js": "^4.1.1",
     "ini": "^2.0.0",
+    "mime-types": "^2.1.34",
     "nano": "^9.0.5",
     "xlsx": "^0.17.4",
     "xml-js": "^1.6.11"

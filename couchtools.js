@@ -26,11 +26,10 @@ async function doc_toCouchdb(data, dbname, docname) {
     }
   }
   const db = nano.use(dbname);
-  let rev = Date.now();
   try {
     const doc = await db.get(docname);
     const response = await db.insert({ _id: docname, _rev: doc._rev,  data });
-    //console.log (doc);
+    logmsg (`Пишу дані в CouchDB ...`); 
   } catch (e) {
     logmsg (`Помилка ${e} при доступу до документу ${docname}, створюю новий`);  
     if (e.statusCode === 404) {
@@ -44,74 +43,88 @@ async function doc_toCouchdb(data, dbname, docname) {
   //return response
 }
 
-/*
-async function masterdataToCouchdb(masterdata) {
+async function Couchdb_todoc (dbname, docname) {
+  const nano = require('nano')(`http://${opts.user}:${opts.password}@localhost:5984`);
+  if (!dbname) {
+    logmsg (`Не вказана БД`); 
+    return 
+  }
+  if (!docname) {
+    logmsg (`Не вказаний документ`); 
+    return 
+  }
   try {
     const response = await nano.db.get(dbname)
   } catch (e) {
-    if (e.statusCode === 404) {
-      await nano.db.create(dbname)
-    }
-  }
+    logmsg (`Помилка ${e} при піключенні до БД`);
+    return
+  } 
   const db = nano.use(dbname);
-  let rev = Date.now();
+  let doc;
   try {
-    const doc = await db.get('masterdata');
-    const response = await db.insert({ _id: 'masterdata', _rev: doc._rev,  masterdata });
-    //console.log (doc);
+    doc = await db.get(docname);
   } catch (e) {
-    //console.log (e);
-    if (e.statusCode === 404) {
-      const response = await db.insert({ _id: 'masterdata', masterdata })
-    }    
-  }  
+    logmsg (`Помилка ${e} при доступу до документу ${docname}`);  
+    return
+  }     
   
-  //const response = await db.insert({ happy: true }, 'rabbit');
-  //return response
+  return doc
 }
 
-async function ui2ToCouchdb() {
+async function files_toCouchdb(dbname, docname, files) {
+  const nano = require('nano')(`http://${opts.user}:${opts.password}@localhost:5984`);
+  if (!Array.isArray (files) || !files[0] || !files[0].name || !files[0].format || !files[0].data) {
+    logmsg (`Помилка в форматі масиву переданих файлів`);
+    console.log (files);
+    return false
+  }
+  let db, doc; 
+
+  if (!dbname) {
+    logmsg (`Не задана БД`);
+    return false
+  };
+  if (!docname) {
+    logmsg (`Не задано документ`);
+    return false
+  };
+  
   try {
     const response = await nano.db.get(dbname)
   } catch (e) {
-    if (e.statusCode === 404) {
-      await nano.db.create(dbname)
-    }
+    logmsg (`Помилка ${e} при піключенні до БД ${dbname}`);
+    return false
   }
-  const db = nano.use(dbname);
-  let rev = Date.now();
+  db = nano.use(dbname);
   try {
-    const doc = await db.get('UI2');
-    const response = await db.insert({ _id: 'UI2', _rev: doc._rev,  pathes: UI2.pathes});
-    //console.log (doc);
+    doc = await db.get(docname);
   } catch (e) {
-    //console.log (e);
+    logmsg (`Помилка ${e} при доступу до документу ${docname}, створюю новий`);  
     if (e.statusCode === 404) {
-      const response = await db.insert({ _id: 'UI2', UI2, pathes : UI2.pathes})
-    }    
-  }
-  for (path in UI2.pathes) {
-    let filename = './iotgw/ui2/' + UI2.pathes[path];
+      doc ={};
+      const response = await db.insert({ _id: docname, doc})
+    } 
+  } 
+  for (let file of files) {
+    doc = await db.get(docname);
+    //console.log (file.name);
     try {
-      const doc = await db.get('UI2');
-      data = fs.readFileSync(filename, 'utf-8');
-      //console.log (doc._rev);
-      await db.attachment.insert('UI2', 
-        UI2.pathes[path], 
-        data, 
-        'text/html',{
-        rev: doc._rev
-        })    
+      await db.attachment.insert(docname, 
+        file.name, 
+        file.data, 
+        file.format,
+        {rev: doc._rev}
+      )
     } catch (e) {
-      console.log (e)
+      console.log ('Помилка прикліплення файлу: ' + e);
+      return false
     }
-  }    
+  }
+  return true        
 }
-*/
-
 
 module.exports = {
-  //masterdataToCouchdb, ui2ToCouchdb,
+  files_toCouchdb, Couchdb_todoc,
   doc_toCouchdb, opts
 }
 

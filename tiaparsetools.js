@@ -1,11 +1,11 @@
 /* модуль для конвертування змісту проекту TIA в Master Data
 */
-
+const path = require ('path');
 const fs = require ('fs');
 const xmlparser = require('xml-js'); //https://www.npmjs.com/package/xml-js
 const masterdatatools = require('./masterdatatools');
 const ini = require('ini');//https://github.com/npm/ini#readme 
-const config = ini.parse (fs.readFileSync('./config.ini', 'utf-8'));
+const config = ini.parse (fs.readFileSync(global.inipath, 'utf-8'));
 
 const opts = {
   logpath: 'log',
@@ -25,9 +25,11 @@ const opts = {
   }
 };
 
+
+
 masterdatatools.opts.logfile = 'tiaparsetools.log'; 
-masterdatatools.opts.source = 'tiaparsetools';
-masterdatatools.opts.logpath = opts.logpath
+masterdatatools.opts.source = config.tiaparsetools.pathsource;
+masterdatatools.opts.logpath = config.tiaparsetools.pathlog;
 
 
 //скорочені назви функцій
@@ -37,19 +39,32 @@ const syncobs = masterdatatools.syncobs;
 
 //парсить усі файли
 function tiaparseall () {
-  const tiasoucefiles = config.tiaparsetools.pathsource + '/';
-  const tiaresultfiles = config.tiaparsetools.pathresult + '/';
+  const tiasoucefiles = path.normalize(config.tiaparsetools.pathsource + '/');
+  const tiaresultfiles = path.normalize(config.tiaparsetools.pathresult + '/');
 
   for (optname in opts.clsiddefault) {
     opts.clsiddefault[optname] = config.tiaparsetools.clsiddefault[optname]
   }
 
+  logmsg ('-------------------- Отримання мастерданих з TIA про PLCs'); 
+  let plcs = {};
+  let listfiles =  {
+    udtfiles : config.tiaparsetools.plc_udtfiles.replace(/ /g, '').split(','),
+    xmlcfgfile : config.tiaparsetools.plc_xmlcfgfile.replace(/ /g, '').split(','),
+  }  
+  plc_to_plcs (plcs, tiasoucefiles, listfiles);
+  logmsg ('plc_to_plcs оброблено');
+  fs.writeFileSync (tiaresultfiles + 'plc_plcs.json', JSON.stringify (plcs), 'utf8');
+
   logmsg ('-------------------- Отримання мастерданих з TIA про канали'); 
   let plchs = {iocfg:{}};
-  let listfiles =  {
+  listfiles =  {
     udtfiles : config.tiaparsetools.ch_udtfiles.replace(/ /g, '').split(','),
     xmlcfgfiles : config.tiaparsetools.ch_xmlcfgfiles.replace(/ /g, '').split(','),
-    xmlhmifiles : config.tiaparsetools.ch_xmlhmifiles.replace(/ /g, '').split(',')
+    xmlhmifiles : config.tiaparsetools.ch_xmlhmifiles.replace(/ /g, '').split(','),
+    xmlbuffile : config.tiaparsetools.ch_xmlbuffile,
+    xmlsubmodulefile: config.tiaparsetools.ch_submodulefile,
+    xmlmodulesfile: config.tiaparsetools.ch_xmlmodulefile
   }  
   plc_to_chs (plchs, tiasoucefiles, listfiles);
   logmsg ('plc_to_chs оброблено');
@@ -62,14 +77,19 @@ function tiaparseall () {
   plctags = {};
   listfiles =  {udtfiles : config.tiaparsetools.var_udtfiles.replace(/ /g, '').split(','),
       xmlcfgfiles : config.tiaparsetools.var_xmlcfgfiles.replace(/ /g, '').split(','),
-      xmlhmifiles : config.tiaparsetools.var_xmlhmifiles.replace(/ /g, '').split(',')
+      xmlhmifiles : config.tiaparsetools.var_xmlhmifiles.replace(/ /g, '').split(','),
+      xmlbuffile : config.tiaparsetools.var_xmlbuffile      
   }
   plcvars_to_tags (plctags, tiasoucefiles, listfiles);
   logmsg ('plcvars_to_tags оброблено');     
 
-  logmsg ('-------------------- Формування таблиці відображення тегів на канали'); 
+  logmsg ('-------------------- Формування таблиці відображення тегів на канали');
   masterdatatools.chsmap_fromplc (plchs, plctags);
   masterdatatools.iomapplcform_togenform (plchs);
+  if  (fs.existsSync(tiaresultfiles) === false) {
+    fs.mkdirSync (tiaresultfiles);
+    console.log ('Створив директорію ' + tiaresultfiles);  
+  } 
   fs.writeFileSync (tiaresultfiles + 'plc_chs.json', JSON.stringify (plchs), 'utf8');
   fs.writeFileSync (tiaresultfiles + 'plc_tags.json', JSON.stringify (plctags), 'utf8');
 
@@ -79,7 +99,8 @@ function tiaparseall () {
   listfiles = {
     udtfiles: [], 
     xmlcfgfiles : config.tiaparsetools.act_xmlcfgfiles.replace(/ /g, '').split(','),
-    xmlhmifiles : config.tiaparsetools.act_xmlhmifiles.replace(/ /g, '').split(',')
+    xmlhmifiles : config.tiaparsetools.act_xmlhmifiles.replace(/ /g, '').split(','),
+    xmlbuffile : config.tiaparsetools.act_xmlbuffile
   };
   listfiles.udtfiles = []
   for (let acttype of acttypes) {
@@ -90,10 +111,119 @@ function tiaparseall () {
   listfiles.udtfiles.push ('ACTTR_CMD');
   listfiles.udtfiles.push ('ACTTR_PRM');
   plcacts_toacts(plcacts, tiasoucefiles, listfiles);
-  logmsg ('plcacts_toacts оброблено');    
+  logmsg ('plcacts_toacts оброблено');
   fs.writeFileSync (tiaresultfiles + 'plc_acts.json', JSON.stringify (plcacts), 'utf8');
-  writetolog (1);  
-  return {chs: plchs, tags: plctags, acts: plcacts}
+
+  logmsg ('-------------------- Отримання інофрмації про IoTBuf'); 
+  let iot = {};
+  listfiles =  {
+    xmlbuffile : config.tiaparsetools.iot_xmlbuffile.replace(/ /g, '').split(','),
+  }  
+  parseiotbuf (iot, tiasoucefiles, listfiles);
+  logmsg ('iot оброблено');
+  fs.writeFileSync (tiaresultfiles + 'plc_iot.json', JSON.stringify (iot), 'utf8');
+
+  writetolog (1);
+  return {plchs, plctags, plcacts, iot, plcs}
+}
+
+//заносить інформацію про IoT Buffer
+function parseiotbuf (iotplc, pathfiles, listfiles) {
+  let xmlcontent, parsedata;
+  parsedata = {};
+  //отримання інфорфмації з CFG
+  let xmlbuffile = listfiles.xmlbuffile;// 
+  xmlbuffile = pathfiles + xmlbuffile ;
+  logmsg (`Читаю файл ${xmlbuffile + '.xml' }`);   
+  xmlcontent = fs.readFileSync (xmlbuffile + '.xml','utf8');
+  logmsg (`Отримую інфорфмацію з IOTBUF`); 
+  let dbcmplt = parsedb (xmlcontent, parsedata);
+  fileparseresult = xmlbuffile + '.json';
+  fs.writeFileSync (fileparseresult, JSON.stringify (dbcmplt), 'utf8');
+
+  //Беру тільки потрібний контент
+  if (!dbcmplt.data.IOTBUF) {
+    logmsg (`Не знайдено об'єкт IOTBUF у файлі`);
+    return
+  }
+  let parseiotbuf = dbcmplt.data.IOTBUF;
+  startadrbyte = multilevel_adrparse (parseiotbuf,  dbcmplt.dbnum);
+  parseiotbuf.adr = adr_to_string ({byte:startadrbyte}, dbcmplt.dbnum);//початкова адреса структури 
+  
+  //меппінг на память
+  if (parseiotbuf.adr){
+    if (!iotplc.memmap) iotplc.memmap = {};
+    if (!iotplc.memmap[dbcmplt.dbnum]) iotplc.memmap[dbcmplt.dbnum] = {};
+    iotplc.memmap[dbcmplt.dbnum][startadrbyte] = 'iotbuf';  
+  }
+  iotplc.iotbuf = parseiotbuf;    
+} 
+
+
+
+//заносить інформацію про PLC в masterplcs 
+//ромзіщених в файлах listfiles по шляху pathfiles
+function plc_to_plcs (masterplcs, pathfiles, listfiles) {
+  let xmlcontent, parsedata;
+  parsedata = {};
+ 
+  //отримання структур
+  if (typeof (masterplcs.types) !== "object") {masterplcs.types = {}};//пошук структур якщо вони вже є в метаданих
+  let udtfiles = listfiles.udtfiles;
+  for (let i=0; i<udtfiles.length; i++) {
+    udtfiles[i] = pathfiles + udtfiles[i] + '.udt';
+    logmsg (`Отримую структуру з ${ udtfiles[i]}`);   
+    parsetypeudt (udtfiles[i], masterplcs.types);
+  }
+
+  //отримання інфорфмації з CFG
+  let xmlcfgfile = listfiles.xmlcfgfile;// 
+  xmlcfgfile = pathfiles + xmlcfgfile ;
+  logmsg (`Читаю файл ${xmlcfgfile + '.xml' }`);   
+  xmlcontent = fs.readFileSync (xmlcfgfile + '.xml','utf8');
+  logmsg (`Отримую інфорфмацію з CFG`); 
+  dbcmplt = parsedb (xmlcontent, parsedata);
+  fileparseresult = xmlcfgfile + '.json';
+  fs.writeFileSync (fileparseresult, JSON.stringify (dbcmplt), 'utf8');
+  PLCCFG_to_plcs (dbcmplt, masterplcs);
+  
+}
+function PLCCFG_to_plcs (dbcmplt, masterplcs) {
+  //Беру тільки потрібний контент
+  if (!dbcmplt.data.PLCCFG) {
+    logmsg (`Не знайдено об'єкт PLCCFG у файлі`);
+    return
+  }          
+  let parseplc = dbcmplt.data.PLCCFG;
+  let sadr; 
+  let startadrbyte = -1;//початкова адреса структури 
+  //перебор полів структури 
+  for (let fieldname in parseplc) {
+    if (typeof parseplc[fieldname] !== 'object') continue;
+    //шукаємо мінімльну адресу байту зміщення в структурі
+    if (parseplc[fieldname].adr && typeof parseplc[fieldname].adr.byte === 'number' && (startadrbyte<0 || parseInt(parseplc[fieldname].adr.byte)<startadrbyte)) {
+      startadrbyte = parseInt(parseplc[fieldname].adr.byte);
+    } else {
+      //парсинг всередині структури
+      for (let fieldname1 in parseplc[fieldname]) {
+        if (typeof parseplc[fieldname][fieldname1] !== 'object') continue;
+        sadr = adr_to_string (parseplc[fieldname][fieldname1].adr, dbcmplt.dbnum);
+        parseplc[fieldname][fieldname1].adr = sadr; 
+      }
+    } 
+
+    //зінюємо формат адреси полів до текстового
+    sadr = adr_to_string (parseplc[fieldname].adr, dbcmplt.dbnum);
+    parseplc[fieldname].adr = sadr;
+  }
+  parseplc.adr = adr_to_string ({byte:startadrbyte}, dbcmplt.dbnum);//початкова адреса структури 
+  //меппінг на память
+  if (parseplc.adr){
+    if (!masterplcs.memmap) masterplcs.memmap = {};
+    if (!masterplcs.memmap[dbcmplt.dbnum]) masterplcs.memmap[dbcmplt.dbnum] = {};
+    masterplcs.memmap[dbcmplt.dbnum][startadrbyte] = 'plc';  
+  }
+  masterplcs.plc = parseplc; 
 }
 
 //заносить інформацію про теги в masteracts з даних про VAR
@@ -116,48 +246,43 @@ function plcacts_toacts (masteracts, pathfiles, listfiles) {
   for (let i=0; i<xmlcfgfiles.length; i++) {
     xmlcfgfiles[i] = pathfiles + xmlcfgfiles[i];
     logmsg (`Читаю файл ${xmlcfgfiles[i] + '.xml' }`);   
-    xmlcontent = fs.readFileSync (xmlcfgfiles[i] + '.xml' ,'utf8');
-    logmsg (`Отримую інфорфмацію з ACTCFG`);   
+    try {
+      xmlcontent = fs.readFileSync (xmlcfgfiles[i] + '.xml' ,'utf8');
+    } catch (e) {
+      logmsg (`Помилка читання файлу, можливо файлу немає в директорії, завершую роботу `);
+      process.exit(); 
+    }
+      logmsg (`Отримую інфорфмацію з ACTCFG`);   
     dbcmplt = parsedb (xmlcontent, parsedata);
     fs.writeFileSync (pathfiles + 'actcfg_parse.json', JSON.stringify (dbcmplt), 'utf8');
     logmsg (`Файл парсингу записано в ${pathfiles + 'actcfg_parse.json'}`); 
     ACTCFG_to_acts (dbcmplt,masteracts);
   }
   
-
-  return
-  //отримання інфорфмації з VARHMI
+  //отримання інфорфмації з ACTHMI
   let fileparseresult;
-  let xmlhmifiles = listfiles.xmlhmifiles;//  ["AIH", "DIH", "AOH", "DOH"];
+  let xmlhmifiles = listfiles.xmlhmifiles;//  ACTH;
   for (let i=0; i<xmlhmifiles.length; i++) {
     xmlhmifiles[i] = pathfiles + xmlhmifiles[i] ;
     logmsg (`Читаю файл ${xmlhmifiles[i] + '.xml' }`);   
     xmlcontent = fs.readFileSync (xmlhmifiles[i] + '.xml','utf8');
-    logmsg (`Отримую інфорфмацію з VARHMI`); 
+    logmsg (`Отримую інфорфмацію з ACTHMI`); 
     dbcmplt = parsedb (xmlcontent, parsedata);
     fileparseresult = xmlhmifiles[i] + '.json'
     fs.writeFileSync (fileparseresult, JSON.stringify (dbcmplt), 'utf8');
     ACTHMI_to_acts (dbcmplt, masteracts);
-  }   
-  writetolog (1); 
-  return
-}
+  }
 
-//пеетворення різних типів констант PLC  вдесяткову форму
-function plcconst_to_dec (val) {
-  if (typeof val === "undefined") return 0
-  if (typeof val !== "string") return val
-  let ar = val.split('#');
-  if (ar.length>1) {
-    switch (parseInt(ar[0])) { //система числення 16, 2
-      case 16: val = parseInt(ar[1],16); break;  
-      case 2: val = parseInt(ar[1],2); break;
-        break;
-      default:
-        break;
-    }
-  } 
-  return val;
+  //отримання інфорфмації з BUF
+  let xmlbuffile = listfiles.xmlbuffile;// 
+  xmlbuffile = pathfiles + xmlbuffile ;
+  logmsg (`Читаю файл ${xmlbuffile + '.xml' }`);   
+  xmlcontent = fs.readFileSync (xmlbuffile + '.xml','utf8');
+  logmsg (`Отримую інфорфмацію з BUF`); 
+  dbcmplt = parsedb (xmlcontent, parsedata);
+  fileparseresult = xmlbuffile + '.json';
+  fs.writeFileSync (fileparseresult, JSON.stringify (dbcmplt), 'utf8');
+  ACTBUF_to_acts (dbcmplt, masteracts);
 }
 //отримання інформації з ACTCFG
 function ACTCFG_to_acts (parsedata, masteracts) {
@@ -223,6 +348,76 @@ function ACTCFG_to_acts (parsedata, masteracts) {
     masteracts.ids[act.id] = actname;
   } 
 }
+//отримання інформації зі структур HMI
+function ACTHMI_to_acts (dbcmplt, masteracts) {
+  let sadr; 
+  for (actname in dbcmplt.data) {
+    let startadrbyte = -1;//початкова адреса структури 
+    let actplchmi = {};
+    let parseact = dbcmplt.data[actname];
+    actplchmi = parseact;
+    //------------------- обробка plchmi
+    delete actplchmi.descr; //видалення щоб не дублювати
+    //перебор полів структури 
+    for (let fieldname in parseact) {
+      if (typeof parseact[fieldname] !== 'object') continue;
+      //шукаємо мінімльну адресу байту зміщення в структурі
+      if (parseact[fieldname].adr && typeof parseact[fieldname].adr.byte === 'number' && (startadrbyte<0 || parseInt(parseact[fieldname].adr.byte)<startadrbyte)) {
+        startadrbyte = parseInt(parseact[fieldname].adr.byte);
+      }   
+      //зінюємо формат адреси полів до текстового
+      sadr = adr_to_string (parseact[fieldname].adr, dbcmplt.dbnum);
+      parseact[fieldname].adr = sadr;
+    }
+    parseact.adr = adr_to_string ({byte:startadrbyte}, dbcmplt.dbnum);//початкова адреса структури 
+    //якщо такого ВМ ще немає - вивести помилку
+    if (typeof masteracts.acts[actname] !== "object") { 
+      logmsg (`ERR: ВМ ${actname} для HMI не існує `);
+      continue
+    }
+    if (!masteracts.acts[actname].plchmi) masteracts.acts[actname].plchmi = {}
+    let masteracthmi = masteracts.acts[actname].plchmi;
+    //синхронізація об'єктів   
+    actplchmi.name = actname;
+    syncobs (masteracthmi, actplchmi);
+    //меппінг на память
+    if (actplchmi.adr){
+      if (!masteracts.memmap) masteracts.memmap = {};
+      if (!masteracts.memmap[dbcmplt.dbnum]) masteracts.memmap[dbcmplt.dbnum] = {};
+      masteracts.memmap[dbcmplt.dbnum][startadrbyte] = 'acts.' + actname +'.plchmi';  
+    } 
+  }
+}
+//отримання інформації з буфера ACT
+function ACTBUF_to_acts (dbcmplt, masteracts) {
+  //Беру тільки потрібний контент
+  if (!dbcmplt.data.ACTBUF) {
+    logmsg (`Не знайдено об'єкт ACTBUF у файлі буферу`);
+    return
+  }          
+  let parseact = dbcmplt.data.ACTBUF;
+  let sadr; 
+  let startadrbyte = -1;//початкова адреса структури 
+  //перебор полів структури 
+  for (let fieldname in parseact) {
+    if (typeof parseact[fieldname] !== 'object') continue;
+    //шукаємо мінімльну адресу байту зміщення в структурі
+    if (parseact[fieldname].adr && typeof parseact[fieldname].adr.byte === 'number' && (startadrbyte<0 || parseInt(parseact[fieldname].adr.byte)<startadrbyte)) {
+      startadrbyte = parseInt(parseact[fieldname].adr.byte);
+    }   
+    //зінюємо формат адреси полів до текстового
+    sadr = adr_to_string (parseact[fieldname].adr, dbcmplt.dbnum);
+    parseact[fieldname].adr = sadr;
+  }
+  parseact.adr = adr_to_string ({byte:startadrbyte}, dbcmplt.dbnum);//початкова адреса структури 
+  //меппінг на память
+  if (parseact.adr){
+    if (!masteracts.memmap) masteracts.memmap = {};
+    if (!masteracts.memmap[dbcmplt.dbnum]) masteracts.memmap[dbcmplt.dbnum] = {};
+    masteracts.memmap[dbcmplt.dbnum][startadrbyte] = 'actbuf';  
+  }
+  masteracts.actbuf = parseact;  
+}
 
 //заносить інформацію про теги в mastertags з даних про VAR
 //ромзіщених в файлах listfiles по шляху pathfiles
@@ -268,20 +463,18 @@ function plcvars_to_tags (mastertags, pathfiles, listfiles) {
     logmsg (`Файл парсингу записано в ${pathfiles + 'var_parse.json'}`); 
     VARHMI_to_tags (dbcmplt, mastertags);
   }   
-  //writetolog (1); 
-  return
-}
-//переведення db, adr {byte, bit} string
-function adr_to_string (adr, dbnum) {
-  let sadr = '';
-  if (typeof adr !== 'undefined') {
-    sadr = 'DB' + dbnum + '.'; 
-    if (typeof (adr.byte) !== 'undefined') sadr += adr.byte.toString();
-    if (typeof (adr.bit) !== 'undefined') sadr += '.' + adr.bit.toString();
-  }
-  return sadr
-} 
 
+  //отримання інфорфмації з BUF
+  let xmlbuffile = listfiles.xmlbuffile;// 
+  xmlbuffile = pathfiles + xmlbuffile ;
+  logmsg (`Читаю файл ${xmlbuffile + '.xml' }`);   
+  xmlcontent = fs.readFileSync (xmlbuffile + '.xml','utf8');
+  logmsg (`Отримую інфорфмацію з BUF`); 
+  dbcmplt = parsedb (xmlcontent, parsedata);
+  fileparseresult = xmlbuffile + '.json';
+  fs.writeFileSync (fileparseresult, JSON.stringify (dbcmplt), 'utf8');
+  VARBUF_to_tags (dbcmplt, mastertags);
+}
 //отримання інформації з VARCFG
 function VARCFG_to_tags (dbcmplt, mastertags) {
   let tagtypes = {AIVAR_CFG:"AI", DIVAR_CFG:"DI",DOVAR_CFG:"DO",AOVAR_CFG:"AO",
@@ -412,45 +605,11 @@ function VARCFG_to_tags (dbcmplt, mastertags) {
     }
   }   
 }
-
-//з масиву опцій opts формує тривоги для tag та act, 
-//для ALM з посиланям на поле fieldname та bitname в структурі HMI
-function opts_to_tag (opts, tag, fieldname, bitname) {
-  let tagname;
-  if (tag.tagname) {
-    tagname = tag.tagname;
-  }else if (tag.actname) {
-    tagname = tag.actname;
-  }  
-  let msg = "";
-  let alm = {name:'', msg: '', word:'', bit:0, class:''}; 
-  let ar = [];
-  for (opt of opts.ar){
-    ar = opt.split('.');
-    switch (ar[0]) {
-      case 'A': //тривоги
-        if (!tag.alms) tag.alms = {};
-
-        alm.name = tag.hmiprefix + '_' + tagname + '_' + bitname;
-        alm.class = ar[1];
-        alm.word = fieldname;
-        alm.bit = parseInt (ar[2]);
-        alm.msg = tag.descr + ': ' + opts.text;
-        tag.alms[alm.name] = alm;       
-        break;    
-      default:
-        break;
-    } 
-    
-    //tag.alm  
-  
-  }    
-}  
-
 //отримання інформації зі структур HMI
 function VARHMI_to_tags (dbcmplt, mastertags) {
-  let sadr;
+  let sadr; 
   for (tagname in dbcmplt.data) {
+    let startadrbyte = -1;//початкова адреса структури 
     let tagplchmi = {};
     let parsetag = dbcmplt.data[tagname];
     tagplchmi = parsetag;
@@ -459,10 +618,15 @@ function VARHMI_to_tags (dbcmplt, mastertags) {
     //перебор полів структури 
     for (let fieldname in parsetag) {
       if (typeof parsetag[fieldname] !== 'object') continue;
+      //шукаємо мінімльну адресу байту зміщення в структурі
+      if (typeof parsetag[fieldname].adr.byte === 'number' && (startadrbyte<0 || parseInt(parsetag[fieldname].adr.byte)<startadrbyte)) {
+        startadrbyte = parseInt(parsetag[fieldname].adr.byte);
+      }   
       //зінюємо формат адреси полів до текстового
       sadr = adr_to_string (parsetag[fieldname].adr, dbcmplt.dbnum);
       parsetag[fieldname].adr = sadr;
     }
+    parsetag.adr = adr_to_string ({byte:startadrbyte}, dbcmplt.dbnum);//початкова адреса структури 
     //якщо такого тегу ще немає - вивести помилку
     if (typeof mastertags.tags[tagname] !== "object") { 
       logmsg (`ERR: Тегу ${tagname} для HMI не існує `);
@@ -473,11 +637,46 @@ function VARHMI_to_tags (dbcmplt, mastertags) {
     //синхронізація об'єктів   
     tagplchmi.name = tagname;
     syncobs (mastertaghmi, tagplchmi);
-    //console.log (mastertaghmi); 
-    //process.exit();       
+    //меппінг на память
+    if (tagplchmi.adr){
+      if (!mastertags.memmap) mastertags.memmap = {};
+      if (!mastertags.memmap[dbcmplt.dbnum]) mastertags.memmap[dbcmplt.dbnum] = {};
+      mastertags.memmap[dbcmplt.dbnum][startadrbyte] = 'tags.' + tagname +'.plchmi';  
+    } 
   }
 }
+//отримання інформації з буфера VAR
+function VARBUF_to_tags (dbcmplt, mastertags) {
+  //Беру тільки потрібний контент
+  if (!dbcmplt.data.VARBUF) {
+    logmsg (`Не знайдено об'єкт VARBUF у файлі буферу`);
+    return
+  }          
+  let parsevar = dbcmplt.data.VARBUF;
+  let sadr; 
+  let startadrbyte = -1;//початкова адреса структури 
+  //перебор полів структури 
+  for (let fieldname in parsevar) {
+    if (typeof parsevar[fieldname] !== 'object') continue;
+    //шукаємо мінімльну адресу байту зміщення в структурі
+    if (parsevar[fieldname].adr && typeof parsevar[fieldname].adr.byte === 'number' && (startadrbyte<0 || parseInt(parsevar[fieldname].adr.byte)<startadrbyte)) {
+      startadrbyte = parseInt(parsevar[fieldname].adr.byte);
+    }   
+    //зінюємо формат адреси полів до текстового
+    sadr = adr_to_string (parsevar[fieldname].adr, dbcmplt.dbnum);
+    parsevar[fieldname].adr = sadr;
+  }
+  parsevar.adr = adr_to_string ({byte:startadrbyte}, dbcmplt.dbnum);//початкова адреса структури 
+  //меппінг на память
+  if (parsevar.adr){
+    if (!mastertags.memmap) mastertags.memmap = {};
+    if (!mastertags.memmap[dbcmplt.dbnum]) mastertags.memmap[dbcmplt.dbnum] = {};
+    mastertags.memmap[dbcmplt.dbnum][startadrbyte] = 'varbuf';  
+  }
+  mastertags.varbuf = parsevar;  
+}
 
+//заносить інформацію про кнали в mastertags з даних про VAR
 //парсити усі дані з PLC в Masterdata
 function plc_to_chs (masterchs, pathfiles, listfiles) {
   let xmlcontent, parsedata, chs;
@@ -501,9 +700,41 @@ function plc_to_chs (masterchs, pathfiles, listfiles) {
   logmsg (`Отримую інфорфмацію з CHHMI`); 
   dbcmplt = parsedb (xmlcontent, parsedata);  
   CHHMI_to_chs (dbcmplt,chs);
-  //writetolog (1);
-} 
 
+  //отримання інфорфмації з BUF
+  let xmlbuffile = listfiles.xmlbuffile;// 
+  xmlbuffile = pathfiles + xmlbuffile ;
+  logmsg (`Читаю файл ${xmlbuffile + '.xml' }`);   
+  xmlcontent = fs.readFileSync (xmlbuffile + '.xml','utf8');
+  logmsg (`Отримую інфорфмацію з BUF`); 
+  dbcmplt = parsedb (xmlcontent, parsedata);
+  fileparseresult = xmlbuffile + '.json';
+  fs.writeFileSync (fileparseresult, JSON.stringify (dbcmplt), 'utf8');
+  CHBUF_to_chs (dbcmplt, masterchs);
+
+  //отримання інфорфмації про модулі
+  let xmlmodulesfile = listfiles.xmlmodulesfile;
+  xmlmodulesfile = pathfiles + xmlmodulesfile ;
+  logmsg (`Читаю файл ${xmlmodulesfile + '.xml' }`);   
+  xmlcontent = fs.readFileSync (xmlmodulesfile + '.xml','utf8');
+  logmsg (`Отримую інфорфмацію з MODULES`); 
+  dbcmplt = parsedb (xmlcontent, parsedata);
+  fileparseresult = xmlmodulesfile + '.json';
+  fs.writeFileSync (fileparseresult, JSON.stringify (dbcmplt), 'utf8');
+  MODULES_to_chs (dbcmplt, masterchs); 
+
+  //отримання інфорфмації з підмодуля
+  let xmlsubmfile = listfiles.xmlsubmodulefile;
+  xmlsubmfile = pathfiles + xmlsubmfile ;
+  logmsg (`Читаю файл ${xmlsubmfile + '.xml' }`);   
+  xmlcontent = fs.readFileSync (xmlsubmfile + '.xml','utf8');
+  logmsg (`Отримую інфорфмацію з SUBMODULE`); 
+  dbcmplt = parsedb (xmlcontent, parsedata);
+  fileparseresult = xmlsubmfile + '.json';
+  fs.writeFileSync (fileparseresult, JSON.stringify (dbcmplt), 'utf8');
+  SUBMODULE_to_chs (dbcmplt, masterchs);
+  
+} 
 //перетворення рзпарсеного блоку CHHMI в стандартизовану структуру chs   
 function CHHMI_to_chs (parsedata, chs) {
   let CHDIs = parsedata.data.CHDI.data;
@@ -573,7 +804,6 @@ function CHHMI_to_chs (parsedata, chs) {
     chhmi.adr = 'DB' + parsedata.dbnum + '.' + CHAOs[i].adr.byte + "." + CHAOs[i].adr.bit
   }  
 }
-
 //парсити дані з PLCMAPS
 function PLCMAPS_to_chs (masterchs, filename) {
   if (!masterchs.iomapplc) masterchs.iomapplc = {genform:{},plcform:[]};
@@ -583,7 +813,13 @@ function PLCMAPS_to_chs (masterchs, filename) {
 
   chs = masterchs.chs; 
   logmsg (`Читаю файл ${filename}`);    
-  let txtcontent = fs.readFileSync (filename,'utf8');  
+  let txtcontent;
+  try {
+    txtcontent = fs.readFileSync (filename,'utf8');
+  } catch (e) {
+    logmsg (`Помилка читання файлу, можливо файлу немає в директорії, завершую роботу `);
+    process.exit(); 
+  }  
   let arcontent = txtcontent.replace(/[\r\n\t]/g,'') .split (';');
   let curmodule = ''; 
   let modtypestr = '';
@@ -622,6 +858,186 @@ function PLCMAPS_to_chs (masterchs, filename) {
   }
   //console.log (masterchs.chs.modulscnt);
 }
+//отримання інформації з буфера VAR
+function CHBUF_to_chs (dbcmplt, masterchs) {
+  //Беру тільки потрібний контент
+  if (!dbcmplt.data.CHBUF) {
+    logmsg (`Не знайдено об'єкт CHBUF у файлі буферу`);
+    return
+  }          
+  let parsech = dbcmplt.data.CHBUF;
+  let sadr; 
+  let startadrbyte = -1;//початкова адреса структури 
+  //перебор полів структури 
+  for (let fieldname in parsech) {
+    if (typeof parsech[fieldname] !== 'object') continue;
+    //шукаємо мінімльну адресу байту зміщення в структурі
+    if (parsech[fieldname].adr && typeof parsech[fieldname].adr.byte === 'number' && (startadrbyte<0 || parseInt(parsech[fieldname].adr.byte)<startadrbyte)) {
+      startadrbyte = parseInt(parsech[fieldname].adr.byte);
+    }   
+    //зінюємо формат адреси полів до текстового
+    sadr = adr_to_string (parsech[fieldname].adr, dbcmplt.dbnum);
+    parsech[fieldname].adr = sadr;
+  }
+  parsech.adr = adr_to_string ({byte:startadrbyte}, dbcmplt.dbnum);//початкова адреса структури 
+  //меппінг на память
+  if (parsech.adr){
+    if (!masterchs.memmap) masterchs.memmap = {};
+    if (!masterchs.memmap[dbcmplt.dbnum]) masterchs.memmap[dbcmplt.dbnum] = {};
+    masterchs.memmap[dbcmplt.dbnum][startadrbyte] = 'chbuf';  
+  }
+  masterchs.chbuf = parsech;  
+}
+//отримання інформації з MODULES
+function MODULES_to_chs (dbcmplt, masterchs) {
+  //Беру тільки потрібний контент
+  if (!dbcmplt.data.MODULES) {
+    logmsg (`Не знайдено об'єкт MODULES у файлі`);
+    return
+  }          
+  let modules =[];
+  let sadr; 
+  let datatype = dbcmplt.data.MODULES.type.split('of ')[1]; 
+  for (let i=0; i<dbcmplt.data.MODULES.data.length;i++) {
+    let module = dbcmplt.data.MODULES.data[i]
+    module.type = datatype;
+    startadrbyte = multilevel_adrparse (module,  dbcmplt.dbnum);
+    module.adr = adr_to_string ({byte:startadrbyte}, dbcmplt.dbnum);//початкова адреса структури 
+
+    //меппінг на память
+    if (module.adr){
+      if (!masterchs.memmap) masterchs.memmap = {};
+      if (!masterchs.memmap[dbcmplt.dbnum]) masterchs.memmap[dbcmplt.dbnum] = {};
+      masterchs.memmap[dbcmplt.dbnum][startadrbyte] = 'modules[' + i + ']';  
+    }
+    modules[i] = module;
+  }  
+  masterchs.modules = modules;  
+}
+
+//отримання інформації з SUBMODULE
+function SUBMODULE_to_chs (dbcmplt, masterchs) {
+  //Беру тільки потрібний контент
+  if (!dbcmplt.data.SUBMODULE) {
+    logmsg (`Не знайдено об'єкт SUBMODULE у файлі буферу`);
+    return
+  }          
+  let submodule = dbcmplt.data.SUBMODULE;
+  let sadr; 
+  let startadrbyte = -1;//початкова адреса структури 
+  //перебор полів структури 
+  for (let fieldname in submodule) {
+    if (typeof submodule[fieldname] !== 'object') continue;
+    //шукаємо мінімльну адресу байту зміщення в структурі
+    if (submodule[fieldname].adr && typeof submodule[fieldname].adr.byte === 'number' && (startadrbyte<0 || parseInt(submodule[fieldname].adr.byte)<startadrbyte)) {
+      startadrbyte = parseInt(submodule[fieldname].adr.byte);
+    }   
+    //зінюємо формат адреси полів до текстового
+    sadr = adr_to_string (submodule[fieldname].adr, dbcmplt.dbnum);
+    submodule[fieldname].adr = sadr;
+  }
+  submodule.adr = adr_to_string ({byte:startadrbyte}, dbcmplt.dbnum);//початкова адреса структури 
+  //меппінг на память
+  if (submodule.adr){
+    if (!masterchs.memmap) masterchs.memmap = {};
+    if (!masterchs.memmap[dbcmplt.dbnum]) masterchs.memmap[dbcmplt.dbnum] = {};
+    masterchs.memmap[dbcmplt.dbnum][startadrbyte] = 'submodulebuf';  
+  }
+  masterchs.submodulebuf = submodule;  
+}
+//парсинг з рекурсією 
+function multilevel_adrparse (parsedata, dbnum) {
+  let sadr = '';
+  startadrbyte = -1;
+  if (parsedata.data && Array.isArray (parsedata.data) === true) {
+    for (let fieldval of parsedata.data) {
+      if (typeof fieldval!== 'object') continue;          
+      if (fieldval.adr) {
+        if (startadrbyte <0 || fieldval.adr.byte < startadrbyte) startadrbyte = fieldval.adr.byte;   
+        sadr = adr_to_string (fieldval.adr, dbnum);
+        fieldval.adr = sadr;
+        if (fieldval.data && Array.isArray (fieldval.data) === true || (fieldval.STA || fieldval.VAL)) {
+          multilevel_adrparse (fieldval, dbnum);
+        }  
+      }else{
+        multilevel_adrparse (fieldval, dbnum)   
+      }
+    }  
+  } else {
+    for (let fieldname in parsedata) {
+      if (typeof parsedata[fieldname] !== 'object') continue;          
+      if (parsedata[fieldname].adr) {
+        if (startadrbyte <0 || parsedata[fieldname].adr.byte < startadrbyte) startadrbyte = parsedata[fieldname].adr.byte;   
+        sadr = adr_to_string (parsedata[fieldname].adr, dbnum);
+        parsedata[fieldname].adr = sadr;
+        if (parsedata[fieldname].data && Array.isArray (parsedata[fieldname].data) === true) multilevel_adrparse (parsedata[fieldname], dbnum);  
+      }else{
+        multilevel_adrparse (parsedata[fieldname], dbnum)   
+      }
+    }  
+  }
+  return startadrbyte
+} 
+//переведення db, adr {byte, bit} string
+function adr_to_string (adr, dbnum) {
+  let sadr = '';
+  if (typeof adr !== 'undefined') {
+    sadr = 'DB' + dbnum + '.'; 
+    if (typeof (adr.byte) !== 'undefined') sadr += adr.byte.toString();
+    if (typeof (adr.bit) !== 'undefined') sadr += '.' + adr.bit.toString();
+  }
+  return sadr
+} 
+//пеетворення різних типів констант PLC  вдесяткову форму
+function plcconst_to_dec (val) {
+  if (typeof val === "undefined") return 0
+  if (typeof val !== "string") return val
+  let ar = val.split('#');
+  if (ar.length>1) {
+    switch (parseInt(ar[0])) { //система числення 16, 2
+      case 16: val = parseInt(ar[1],16); break;  
+      case 2: val = parseInt(ar[1],2); break;
+        break;
+      default:
+        break;
+    }
+  } 
+  return val;
+}
+//з масиву опцій opts формує тривоги для tag та act, 
+//для ALM з посиланям на поле fieldname та bitname в структурі HMI
+function opts_to_tag (opts, tag, fieldname, bitname) {
+  let tagname;
+  if (tag.tagname) {
+    tagname = tag.tagname;
+  }else if (tag.actname) {
+    tagname = tag.actname;
+  }  
+  let msg = "";
+  let alm = {name:'', msg: '', word:'', bit:0, class:''}; 
+  let ar = [];
+  for (opt of opts.ar){
+    ar = opt.split('.');
+    switch (ar[0]) {
+      case 'A': //тривоги
+        if (!tag.alms) tag.alms = {};
+
+        alm.name = tag.hmiprefix + '_' + tagname + '_' + bitname;
+        alm.class = ar[1];
+        alm.word = fieldname;
+        alm.bit = parseInt (ar[2]);
+        alm.msg = tag.descr + ': ' + opts.text;
+        tag.alms[alm.name] = alm;       
+        break;    
+      default:
+        break;
+    } 
+    
+    //tag.alm  
+  
+  }    
+}  
+
 
 // --------------- DB XML -----------------------------
 //парсить xmlcontent і заносить дані полів по DB parsedata та dbcmplt

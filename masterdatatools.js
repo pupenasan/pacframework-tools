@@ -1,11 +1,13 @@
+const userdir = process.env.userprofile + '/pacframeworktools';
+const path = require ('path');
 const fs = require ('fs');
 const opts = {
+  inipath: './',
   logpath: 'log',
   logfile: 'general.log',
   source: 'undefined'
 };
 let msglog = '';
-
 //порівняння мастердат plc та cfg
 function tagsdif (plctags, cfgtags) {
   let difob = {listtagsinfo: {
@@ -588,7 +590,11 @@ function logmsg (msg, toconsole=1) {
 function writetolog (createnew = 0) {
   let now = new Date ();
   let logfile = opts.logpath + '/' + opts.logfile;
-  msglog = '===============' + now + '\n' + msglog; 
+  msglog = '===============' + now + '\n' + msglog;
+  if  (fs.existsSync(path.dirname(logfile)) === false) {
+    fs.mkdirSync (path.dirname(logfile));
+    console.log ('Створив директорію ' + path.dirname(logfile));  
+  } 
   if (createnew===1) {
     fs.writeFileSync (logfile, msglog, 'utf8');
   } else {

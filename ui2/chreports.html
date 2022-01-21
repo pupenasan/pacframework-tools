@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <title>Станція Токмак</title>
+  <style>
+    table, th, td {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+  </style>
+  <script type="text/javascript" src="ui2main.js"></script>
+  <script type="text/javascript">
+    let xhttread = new XMLHttpRequest ();
+    let urlread = '/apiv1/COMB';
+    let body = JSON.stringify(['masterdata.plctags.tags', 'RT.modules']);
+    var recvdata = {};
+    xhttread.open ('POST', urlread, true);
+    xhttread.setRequestHeader("Content-Type", "application/json");
+    xhttread.send(body);
+
+    xhttread.onreadystatechange = function () {
+      if (this.readyState === 4 && this.status === 200) {
+        let content = JSON.parse (xhttread.responseText);
+        if (content.p && content.twn && content.v && content.ts) {
+          for (let nameob in content.v){
+            let newname = nameob;
+            recvdata[newname] = content.v[nameob];
+          }
+          if (recvdata['masterdata.plctags.tags'] && recvdata['RT.modules']) {
+            reporttagchs (recvdata['masterdata.plctags.tags'], recvdata['RT.modules'])
+          }  
+        }   
+      }
+    } 
+    //формує звіт по використаним каналам
+    function reporttagchs (tags, modules){ 
+      console.log (tags);
+      let dich = [], doch = [], aich = [], aoch = []; 
+      for (let tagname in tags) {
+        let tag = tags [tagname];
+        let ch = 0;
+        if (tag.chid) {
+          ch = parseInt(tag.chid);
+        }
+        if (ch>0) {
+          switch (tag.type){ 
+            case 'DI':
+              dich[ch] = {tagname: tagname, tagdescr: tag.descr};
+              break;
+            case 'DO': 
+              doch[ch] = {tagname: tagname, tagdescr: tag.descr};
+              break;
+            case 'AI':
+              aich[ch] = {tagname: tagname, tagdescr: tag.descr};
+              break;
+            case 'AO':
+              aoch[ch] = {tagname: tagname, tagdescr: tag.descr};
+              break;
+            default:
+              break;
+          }
+        } 
+      }
+      let div = document.getElementById('report');
+      //console.log (dich);
+      let htmltxt = 'Звіт по каналам';
+      for (module of modules) {
+        htmltxt += `<p>${module.MODID}</p>`
+        htmltxt += '<table>'
+        htmltxt += '<th> Канал модуля </th><th> Лог.канал </th> <th> Змінна </th> <th> Змінна </th>'
+        let j=0;
+        for (let submodule of module.submodules) {
+          for (let i=submodule.strtnmb; i<submodule.strtnmb+submodule.chcnts; i++) {
+            let tag;
+            switch (submodule.type) {
+              case 'DI':
+                tag = dich[i];
+                break;
+              case 'DO':
+                tag = doch[i];
+                break;
+              case 'AI':
+                tag = aich[i];
+                break;
+              case 'DI':
+                tag = aoch[i];
+                break;
+              default:
+                tag = {tagname:'резерв', tagdescr:'резерв'}
+                break;
+            }
+            if (!tag) tag = {tagname:'резерв', tagdescr:'резерв'}
+            htmltxt += `<tr><td>${j}</td><td>${submodule.type+i}</td><td>${tag.tagname}</td><td>${tag.tagdescr}</td></tr>`
+            j++;
+          }  
+        }
+        htmltxt += `</table>`
+      }
+      div.innerHTML = htmltxt;
+      return ;
+
+      //divmodulecfg.ta .innerHTML = `<object id="modcfg" type="image/svg+xml" data="submodulecfg.svg" width="240px" height="600px">Your browser does not support SVG </object>`;
+
+      const reppath = opts.pathresultmd + '/' + 'chrep';
+      let mdtext = `# Звіт про прив'язку змінних до входів/виходів\n\n`;
+      mdtext += `Звіт згенеровано ${(new Date).toLocaleString()}\n\n`;
+      for (let devname in cfgchs.devs) {
+        mdtext += '## ----- Острів ' + devname + '\n\n'
+        for (let modulename in cfgchs.devs[devname]) {
+          let module = cfgchs.moduls[modulename];
+          mdtext += '### Модуль ' + modulename + '\n\n';      
+          let tab = {
+            header: ['Канал на модулі', 'Лог.канал', `Прив'язана змінна`, 'Примітка'], 
+            rows: []
+          }
+          let j=0;
+
+          let chdilen = (module.chdis && module.chdis.length) || 0;//кількість каналів на модулі
+          let chdolen = (module.chdos && module.chdos.length) || 0;//кількість каналів на модулі
+          let chailen = (module.chais && module.chais.length) || 0;//кількість каналів на модулі
+          let chaolen = (module.chaos && module.chaos.length) || 0;//кількість каналів на модулі
+
+          for (let i=1; i<chdilen;i++) {
+            if (module.chdis[i]) {
+              ch = cfgchs.chs.chdis[module.chdis[i].id];
+            } else {
+              continue
+            }
+            tab.rows[j]= [];
+            tab.rows[j].push (i);
+            tab.rows[j].push (ch.id);
+            onechreport (tab, ch, cfgtags, j);
+            j++
+          }
+          for (let i=1; i<chdolen;i++) {
+            if (module.chdos[i]) {
+              ch = cfgchs.chs.chdos[module.chdos[i].id];
+            } else {
+              continue
+            }
+            tab.rows[j]= [];
+            tab.rows[j].push (i);
+            tab.rows[j].push (ch.id);
+            onechreport (tab, ch, cfgtags, j);
+            j++
+          }
+          for (let i=1; i<chailen;i++) {
+            if (module.chais[i]) {
+              ch = cfgchs.chs.chais[module.chais[i].id];
+            } else {
+              continue
+            }
+            tab.rows[j]= [];
+            tab.rows[j].push (i);
+            tab.rows[j].push (ch.id);
+            onechreport (tab, ch, cfgtags, j);
+            j++
+          }
+          for (let i=1; i<chaolen;i++) {
+            if (module.chaos[i]) {
+              ch = cfgchs.chs.chaos[module.chaos[i].id];
+            } else {
+              continue
+            }
+            tab.rows[j]= [];
+            tab.rows[j].push (i);
+            tab.rows[j].push (ch.id);
+            onechreport (tab, ch, cfgtags, j);
+            j++
+          }                
+          //console.log (tab);
+          let mdtab = mdtools.createmdtable (tab);
+          mdtext += mdtab;
+        }
+      }
+    }
+  </script> 
+</head>
+ <body>
+ <div id="report"> Звіт не сформовано</div>
+ </body>
+</html>
