@@ -26,14 +26,25 @@ const exceltools = require ('./exceltools'); //
 const masterdatatools = require ('./masterdatatools');
 const reptools = require ('./reptools');
 const tiacreatetools = require ('./tiacreatetools');
+const seuncreatetools = require ('./seuncreatetools');
 const couchtools = require ('./couchtools'); 
 const ui2tools = require ('./ui2tools');
+
+//скорочені назви функцій
+const logmsg = masterdatatools.logmsg;
+const writetolog = masterdatatools.writetolog;
 
 couchtools.opts.user = process.env.COUCH_USER;
 couchtools.opts.password = process.env.COUCH_PASS;
 let twinname = config.general.twinname;
 
 switch (process.argv[2]) {
+  case `getcfgfromxls`:
+    getcfgfromxls();
+    break;
+  case `seuncreateall`:
+    seuncreateall();
+    break;   
   case `tiaparseall`:
     tiaparseall();
     break;
@@ -53,6 +64,71 @@ async function tiaparseall() {
   await couchtools.doc_toCouchdb(plcmasterdata, twinname, 'plcmasterdata');
 }
 
+//створює файли Unity_PRO по конфігураційним налаштуванням
+function seuncreateall(){
+  let cfg = getcfgfromxls();
+  seuncreatetools.create_all (cfg.cfgchs, cfg.cfgtags, cfg.cfgacts)
+} 
+
+function getcfgfromxls () {
+  exceltools.opts.logpath = 'log';
+  exceltools.opts.logfile = 'exceltools.log';
+  masterdatatools.opts.logfile = 'test.log';
+  let cfgtags = getcfgtags_fromxls ();
+  let cfgacts = getcfacts_fromxls(cfgtags);
+
+  let cfgchs = {};
+  let cfgchmap = chsmap_fromcfg (cfgchs, cfgtags);
+
+  let filcfgtags = config.exceltools.pathresult + '/' + 'cfg_tags.json';
+  fs.writeFileSync (filcfgtags, JSON.stringify (cfgtags), 'utf8');
+  logmsg (`Файл ${filcfgtags} записано`); 
+
+  let filcfgchs = config.exceltools.pathresult + '/' + 'cfg_chs.json';
+  fs.writeFileSync (filcfgchs, JSON.stringify (cfgchs), 'utf8');
+  logmsg (`Файл ${filcfgchs} записано`);
+  
+  let filecfgacts = config.exceltools.pathresult + '/' + 'cfg_acts.json';
+  fs.writeFileSync (filecfgacts, JSON.stringify (cfgacts), 'utf8');
+  logmsg (`Файл ${filecfgacts} записано`);
+  
+  let filecfgchmap = config.exceltools.pathresult + '/' + 'cfg_chmap.json';
+  fs.writeFileSync (filecfgchmap, JSON.stringify (cfgchmap), 'utf8');
+  logmsg (`Файл ${filecfgchmap} записано`);    
+  
+  reptools.opts.pathresultmd = config.reptools.pathresultmd;
+  reptools.repacchscfg (cfgchs, cfgtags); 
+  logmsg (`Звіт записано`);
+
+  reptools.opts.pathresultmd = config.reptools.pathresultmd + '/acts';
+  reptools.repactuators (cfgacts); 
+  logmsg (`Звіт записано`);
+  
+  writetolog (1);
+  return {cfgchs, cfgtags, cfgacts};
+}
+
+function getcfgtags_fromxls () {
+  logmsg ('-------------------- Отримання мастерданих про теги з Excel'); 
+  filexls = config.exceltools.pathsource + '/' + config.exceltools.pathxlsfile;
+  let cfgtags = {};
+  cfgtags = exceltools.getcfgtags_fromxls (filexls);
+  return cfgtags   
+}
+function getcfacts_fromxls (cfgtags) {
+  logmsg ('-------------------- Отримання мастерданих про ВМ з Excel та мастерданих тегів'); 
+  filexls = config.exceltools.pathsource + '/' + config.exceltools.pathxlsfile;
+  let cfgacts_types = exceltools.getacttypes_fromxls (filexls);
+  let cfgacts = masterdatatools.getactrtsinfo (cfgtags, cfgacts_types)
+  return  cfgacts  
+}
+function chsmap_fromcfg (cfgchs, cfgtags){
+  let filexls = config.exceltools.pathsource + '/' + config.exceltools.pathxlsfile;
+  let chstype = exceltools.getchtypes_fromxls(filexls);
+  let cfgchmap = masterdatatools.chsmap_fromcfgfn (cfgchs, cfgtags, chstype);
+  masterdatatools.iomaptoplcform (cfgchs);
+  return (cfgchmap)
+}
 
 module.exports = {
   tiaparseall

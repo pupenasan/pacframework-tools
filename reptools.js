@@ -82,6 +82,9 @@ function repactuators (cfgacts, onlymd = true) {
     }
     let mdtab = mdtools.createmdtable (tab);
     mdtext += mdtab;
+    if (!fs.existsSync(path.dirname(`${reppath}acttrs_${acttypename}.md`))) {
+      fs.mkdirSync(path.dirname(`${reppath}acttrs_${acttypename}.md`))
+    }  
     fs.writeFileSync (`${reppath}acttrs_${acttypename}.md`, mdtext, 'utf-8')
     if (onlymd === false) { 
       let cmd = `pandoc -s ${reppath}acttrs_${acttypename}.md -o ${reppath}acttrs_${acttypename}.docx`;
@@ -114,51 +117,51 @@ function repacchscfg (cfgchs, cfgtags) {
       let chailen = (module.chais && module.chais.length) || 0;//кількість каналів на модулі
       let chaolen = (module.chaos && module.chaos.length) || 0;//кількість каналів на модулі
 
-      for (let i=1; i<chdilen;i++) {
+      for (let i=0; i<chdilen;i++) {
         if (module.chdis[i]) {
           ch = cfgchs.chs.chdis[module.chdis[i].id];
         } else {
           continue
         }
         tab.rows[j]= [];
-        tab.rows[j].push (i);
-        tab.rows[j].push (ch.id);
+        tab.rows[j].push (i.toString());
+        tab.rows[j].push ('DI' + ch.id);
         onechreport (tab, ch, cfgtags, j);
         j++
       }
-      for (let i=1; i<chdolen;i++) {
+      for (let i=0; i<chdolen;i++) {
         if (module.chdos[i]) {
           ch = cfgchs.chs.chdos[module.chdos[i].id];
         } else {
           continue
         }
         tab.rows[j]= [];
-        tab.rows[j].push (i);
-        tab.rows[j].push (ch.id);
+        tab.rows[j].push (i.toString());
+        tab.rows[j].push ('DO' + ch.id);
         onechreport (tab, ch, cfgtags, j);
         j++
       }
-      for (let i=1; i<chailen;i++) {
+      for (let i=0; i<chailen;i++) {
         if (module.chais[i]) {
           ch = cfgchs.chs.chais[module.chais[i].id];
         } else {
           continue
         }
         tab.rows[j]= [];
-        tab.rows[j].push (i);
-        tab.rows[j].push (ch.id);
+        tab.rows[j].push (i.toString());
+        tab.rows[j].push ('AI' + ch.id);
         onechreport (tab, ch, cfgtags, j);
         j++
       }
-      for (let i=1; i<chaolen;i++) {
+      for (let i=0; i<chaolen;i++) {
         if (module.chaos[i]) {
           ch = cfgchs.chs.chaos[module.chaos[i].id];
         } else {
           continue
         }
         tab.rows[j]= [];
-        tab.rows[j].push (i);
-        tab.rows[j].push (ch.id);
+        tab.rows[j].push (i.toString());
+        tab.rows[j].push ('AO' + ch.id);
         onechreport (tab, ch, cfgtags, j);
         j++
       }                
@@ -167,6 +170,9 @@ function repacchscfg (cfgchs, cfgtags) {
       mdtext += mdtab;
     }
   }
+  if (!fs.existsSync(opts.pathresultmd)) {
+    fs.mkdirSync(opts.pathresultmd)
+  } 
   fs.writeFileSync (`${reppath}.md`, mdtext, 'utf-8');
 }
 

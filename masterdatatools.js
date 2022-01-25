@@ -109,7 +109,6 @@ function chsmap_fromplc (plchs, plctags){
 function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
   let cfgchmap = {dimap:[], domap:[], aimap:[], aomap:[]}; 
   cfgchs.devs = {};
-  cfgchs.devs = {};
   cfgchs.moduls = {};
   cfgchs.chs = {
     types: chstype,
@@ -139,21 +138,20 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
       };
       let chinmod = {//стрктура для мепінгу в модулі
         type: tag.props.TYPE,//тип каналу в модулі 
-        id:chnum, //ідентифікатор канул
-        ch: (tag.props.CH - 1) || 0, //номер канала на модулі, напр 1-1
+        id:chnum, //ідентифікатор каналу
+        ch: tag.props.CH || 0, //номер канала на модулі, напр 1-1
         modid: tag.props.MODID, //повне позначення модуля, напр CJF01_A3AI
       };
       //формування пристрою (острову) та модуля в ньому
-      if (!cfgchs.devs[chinmod.dev]) cfgchs.devs[chinmod.dev] = {};
-      let dev =  cfgchs.devs[chinmod.dev];
+      if (!cfgchs.devs[ch.dev]) cfgchs.devs[ch.dev] = {};
+      let dev =  cfgchs.devs[ch.dev];
       if (!dev[chinmod.modid]) {
-        dev[chinmod.modid] = {submdicnt:0, submdocnt:0, submaicnt:0, submaocnt:0, submodules:{}};
+        dev[chinmod.modid] = {};//{submdicnt:0, submdocnt:0, submaicnt:0, submaocnt:0, submodules:{}};
         cfgchs.chs.statistic.modulscnt++;
       };
       if (!cfgchs.moduls[chinmod.modid]) cfgchs.moduls[chinmod.modid]={chdis:[],chdos:[], chais:[], chaos:[]};
       let statistic = cfgchs.chs.statistic;
-      let modul = cfgchs.moduls[chinmod.modid];
-      
+      let modul = cfgchs.moduls[chinmod.modid]; 
       switch (tag.props.TYPE) {
         case 'DI':
           chdis[chnum] = ch;          
@@ -185,7 +183,7 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
             domap[chnum] = tagname;
           }
           break;
-        case 'AI':
+        case 'AI':       
           chais[chnum] = ch; 
           if (chnum>statistic.aicnt) statistic.aicnt=chnum;           
           if (modul.chais[chinmod.ch]) {
@@ -224,11 +222,10 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
     } 
     //tag.chid chadr
   }
-
   chsmapfn (cfgchmap, chdis, dimap, 'di');
   chsmapfn (cfgchmap, chdos, domap, 'do');
   chsmapfn (cfgchmap, chais, aimap, 'ai');
-  chsmapfn (cfgchmap, chaos, aomap, 'ao');  
+  chsmapfn (cfgchmap, chaos, aomap, 'ao');
   return (cfgchmap);
 } 
 
@@ -292,6 +289,7 @@ function iomaptoplcform (cfgchs) {
     ];
     let nmbsubmodule = 0;
     for (let i=0; i<modulegenform.submdicnt; i++) {
+      if (!module.chdis[i*16]) continue; //якщо є пропущені номери
       let chidstart = module.chdis[i*16].id;  
       modulegenform.submodules [nmbsubmodule] = {
         type:'1', 
@@ -301,6 +299,7 @@ function iomaptoplcform (cfgchs) {
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submdocnt; i++) {
+      if (!module.chdos[i*16]) continue; //якщо є пропущені номери
       let chidstart = module.chdos[i*16].id;  
       modulegenform.submodules [nmbsubmodule] = {
         type:'2', 
@@ -310,6 +309,7 @@ function iomaptoplcform (cfgchs) {
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submaicnt; i++) {
+      if (!module.chais[i*16]) continue; //якщо є пропущені номери
       let chidstart = module.chais[i*16].id;  
       modulegenform.submodules [nmbsubmodule] = {
         type:'3', 
@@ -319,6 +319,7 @@ function iomaptoplcform (cfgchs) {
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submaocnt; i++) {
+      if (!module.chaos[i*16]) continue; //якщо є пропущені номери
       let chidstart = module.chaos[i*16].id;  
       modulegenform.submodules [nmbsubmodule] = {
         type:'4', 
