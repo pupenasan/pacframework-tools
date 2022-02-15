@@ -39,13 +39,16 @@ couchtools.opts.password = process.env.COUCH_PASS;
 let twinname = config.general.twinname;
 
 switch (process.argv[2]) {
-  case `getcfgfromxls`:
+  case 'getcfgfromxls':
     getcfgfromxls();
     break;
-  case `seuncreateall`:
+  case 'seuncreateall':
     seuncreateall();
-    break;   
-  case `tiaparseall`:
+    break;
+  case 'tiacreateall':
+    tiacreateall();
+    break;
+  case 'tiaparseall':
     tiaparseall();
     break;
   case 'updateui2':
@@ -69,6 +72,29 @@ function seuncreateall(){
   let cfg = getcfgfromxls();
   seuncreatetools.create_all (cfg.cfgchs, cfg.cfgtags, cfg.cfgacts)
 } 
+
+function tiacreateall (){
+  tiacreatetools.opts.resultpath  = config.tiacreatetools.pathresult + '/';
+  let cfg = getcfgfromxls();
+  tiacreatetools.create_all(cfg.cfgchs, cfg.cfgtags, cfg.cfgacts);
+ 
+  /*let content ={};
+  logmsg ('-------------------- Створення програмних блоків для TIA'); 
+  let cfgtagsfilemaster = tiaresultfiles + 'cfg_tags.json';
+  let cfgchsfilemaster = tiaresultfiles + 'cfg_chs.json';
+  let cfgactssfilemaster = tiaresultfiles + 'cfg_acts.json';
+
+  content = fs.readFileSync (cfgtagsfilemaster,'utf8');
+  let cfgtags = JSON.parse (content);
+  content = fs.readFileSync (cfgchsfilemaster,'utf8');
+  let cfgchs = JSON.parse (content);
+  content = fs.readFileSync (cfgactssfilemaster,'utf8');
+  let cfgacts = JSON.parse (content);
+
+  tiacreatetools.create_all(cfgchs, cfgtags, cfgacts);
+  writetolog (1);
+  */
+}
 
 function getcfgfromxls () {
   exceltools.opts.logpath = 'log';

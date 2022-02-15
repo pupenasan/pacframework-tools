@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <title>Станція Токмак</title>
+  <script type="text/javascript" src="ui2main.js"></script>
+ </head>
+ <body>
+  <div id="body" style="display: flex; float:left;">
+    <div id="workspace" style= "position: relative; display: inline; float:left; height:100vh; width:800px; overflow: auto; background-color:#cccccc" >
+      <div tag="RT.acts.EBA10_AA101" class = "VLVDmin" style = "float:inherit;"></div>
+      <div tag="RT.acts.LAE10_AA001" class = "VLVDmin" style = "float:inherit;"></div>
+      <div tag="RT.acts.LBC40_AA002" class = "VLVDmin" style = "float:inherit;"></div> 
+      <div tag="RT.acts.HHL02_AA001" class = "VLVSmin" style = "float:inherit;"></div> 
+    </div>
+    <div id="panel" style="position: relative; display: inline; float:left; height:100vh; width: 300px;  overflow: auto;background-color:#cccccc">
+      <div id = "CMD"></div>
+      <div id = "INFO"></div>
+      <div id = "CFG"></div>
+    </div>
+  </div>
+ </body>
+</html>
+<script type="text/javascript"> 
+  //читання усіх обєктів за разом, а запис кожного окремо
+  let xhttpwrite = new XMLHttpRequest ();
+  let xhttread = new XMLHttpRequest ();
+  urlread = '/apiv1/COMB';
+  urlwriteprefix = '/apiv1/';
+  
+  //основний об'єкт доступний всюди 
+  window.IoTGW = {
+    RT: {}, //дані реального часу
+    tags: {},//перелік обєктів що потрібно оновлювати 
+    tagsar: [],//перелік обєктів що потрібно оновлювати 
+    widgets: {}, //віджети з описом всього
+    classes: {}, //перелік класів та їх особливостей
+    selid: '', //ідентифікатор вибраного об'єкту 
+  }
+
+  //перебираємо усі div і формуємо карту компонентів  і тегів
+  function maps () {
+    let divwrspc = document.getElementById ('body');
+    let divwidgets = divwrspc.querySelectorAll('div');
+    let i = 0;
+    for (wdgt of divwidgets) {
+      i++;
+      let wdgtclass = wdgt.getAttribute('class'); 
+      let wdgttag = wdgt.getAttribute('tag'); 
+      if (!wdgt.id) wdgt.id = 'wdgt' + i; 
+      let wdgid = wdgt.id;
+      //віджети без тегу
+      if (!wdgt.getAttribute('tag')) {
+        window.IoTGW.widgets [wdgid] = {
+          id: wdgid,
+          tag: wdgttag,
+          class: wdgtclass,
+          html: wdgt,
+          svg: {}   
+        }        
+        continue;
+      }  
+      //сконфігуровані віджети з тегом   
+      window.IoTGW.widgets [wdgid] = {
+        id: wdgid,
+        tag: wdgttag,
+        class: wdgtclass,
+        html: wdgt,
+        svg: {}   
+      }
+      //збергіаємо теги як об'єкти і як масив, масив заповнємо після заповнення обєктами
+      if (!window.IoTGW.tags[wdgttag]) {
+        window.IoTGW.tags[wdgttag] = 
+        {tagid: wdgttag, 
+          wdgids:[]
+        }
+      }    
+      window.IoTGW.tags[wdgttag].wdgids.push(wdgid);
+
+      //для кожного класу визначаємо скрипт, віджети які йому належать, та функцію яка запускається при оновленні тегу
+       if (!window.IoTGW.classes[wdgtclass]) window.IoTGW.classes[wdgtclass] = {
+          classid: wdgtclass, 
+          scriptname : wdgtclass + '.js', 
+          widgets: [],
+          updateFn: {}};
+      window.IoTGW.classes[wdgtclass].widgets.push (wdgid);    
+    }
+    //створюємо єдиний масив для оновлення
+    for (tagname in window.IoTGW.tags) {
+      window.IoTGW.tagsar.push (tagname)
+    }
+    //console.log (window.IoTGW.tagsar);
+    
+    //завантаження скриптів відповідно до класу
+    for (wdgtclass in window.IoTGW.classes) {
+      let script = document.createElement('script');
+      script.src = window.IoTGW.classes[wdgtclass].scriptname;
+      document.body.append(script);
+    };  
+    //let scriptinject =     
+  }  
+ 
+
+  //комунікації
+  function senddata (urlcmd, senddata) {
+    let body = JSON.stringify (senddata);
+    xhttpwrite.open ('PUT', urlwriteprefix+urlcmd, true);
+    xhttpwrite.setRequestHeader("Content-Type", "application/json");
+    xhttpwrite.send(body);
+  }
+  function readdata () {
+    //console.log (xhttread.readyState)
+    if (xhttread.readyState > 1 && xhttread.readyState < 4) return;
+    let body = JSON.stringify (window.IoTGW.tagsar);
+    //console.log (body);
+    xhttread.open ('POST', urlread, true);
+    xhttread.setRequestHeader("Content-Type", "application/json");
+    xhttread.send(body);
+  }
+
+  xhttread.onreadystatechange = function () {
+    if (this.readyState === 4 && this.status === 200) {
+      let content = JSON.parse (xhttread.responseText);
+      if (content.p && content.twn && content.v && content.ts) {
+        for (let nameob in content.v){
+          let newname = nameob;//nameob.replace (window.IoTGW.urlRTprefix, '');
+          window.IoTGW.RT[newname] = content.v[nameob];
+        }
+        for (let wdgtclassname in window.IoTGW.classes) {
+          let wdgtclass = window.IoTGW.classes[wdgtclassname];
+          wdgtclass.updateFn();  
+        }
+        //console.log (window.IoTGW.RT);  
+      }   
+    } 
+  }
+
+  window.onload = function() {
+    maps();
+    var timer = setInterval (readdata , 1000)
+  };
+
+
+</script>

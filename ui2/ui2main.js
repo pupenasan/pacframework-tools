@@ -20,11 +20,8 @@ document.addEventListener("DOMContentLoaded", () => {
   divmenu.innerHTML = `
   <a href="index.html">Main</a>
   <a href="modules.html">MODULES</a>
-  <a href="aih.html">AI</a>
-  <a href="dih.html">DI</a>
-  <a href="aoh.html">AO</a>
-  <a href="doh.html">DO</a>
-  <a href="acth.html">ACT</a>
+  <a href="vars.html">VARS</a>
+  <a href="acth.html">ACTS</a>
   <a href="svggen.html">svggen</a>
   `
   switch (page) {
@@ -85,7 +82,7 @@ xhttpsta.onreadystatechange = function () {
       for (prop in v) {
         staalm_perm [prop] =  v[prop];  
       }
-      if (staalm_perm.ALM && staalm_perm.FRC) { //STA
+      if (divstatusbar && staalm_perm.ALM && staalm_perm.FRC) { //STA
         let bodysta = updateSTA (staalm_perm);
         divstatusbar.innerHTML = bodysta;
       }

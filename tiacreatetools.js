@@ -1,14 +1,22 @@
+const os = require('os');
 const fs = require ('fs');
 let path = require('path');
+const masterdatatools = require ('./masterdatatools');
 //const envvar = require ('./const.js');
 
 const opts = {
   logpath: 'log',
   logfile: 'general.log',
-  resultpath: 'totia'
+  resultpath: 'totia',
+  source: 'source'
 };
 
+masterdatatools.opts.logfile = opts.logfile; 
+//скорочені назви функцій
+const logmsg = masterdatatools.logmsg;
+
 function create_all (cfgchs, cfgtags, cfgacts) {
+  logmsg ('-------------------- Створення програмних блоків для TIA'); 
   create_pstsdb (cfgchs);
   create_chdb (cfgchs);
   create_dbmodulesdb (cfgchs);
@@ -225,7 +233,7 @@ END_DATA_BLOCK
 
 function create_varshmi (cfgtags) {
   let bodyvarDIH = '', bodyvarDOH = '', bodyvarAIH = '', bodyvarAOH = '';
-  let bodyDIVARS = '', bodyDOVARS = '', bodyAIVARS = '', bodyAOVARS = '';
+  let bodyDIVARS = `// цей код згенеровано ${Date()}\n`, bodyDOVARS = `// цей код згенеровано ${Date()}\n`, bodyAIVARS = `// цей код згенеровано ${Date()}\n`, bodyAOVARS = `// цей код згенеровано ${Date()}\n`;
   const tags = [];
   for (let tagname in cfgtags.tags) {
     tags.push (cfgtags.tags[tagname]) 
@@ -548,5 +556,6 @@ function create_dbsinfo (masterdata) {
 
 module.exports = {
   create_plcmapsscl, create_pstsdb, create_chdb, create_dbmodulesdb, create_vardb, create_varshmi, create_all,
-  create_actrtrsdb
+  create_actrtrsdb,
+  opts
 };

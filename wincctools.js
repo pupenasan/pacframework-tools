@@ -6,7 +6,7 @@ test();
 
 
 function test () {
-  //test_mastertags_to_almlist ();
+  test_mastertags_to_almlist ();
   test_masteracts_to_almlist();
 } 
 

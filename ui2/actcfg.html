@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Document</title>
+  <script type="text/javascript" src="ui2main.js"></script>    
+</head>
+<body>
+  <div id="body" style="display: inline; margin-top: 10%;">
+    <div id="example-table" style="float: left; width: 70%;   margin-left: 1%;margin-right: 1%;"></div>
+    <div id="ctrl" style="float: left; width: 20%;   margin-left: 1%;margin-right: 1%;">
+      <p id="actname"></p>
+      <table>
+        <tr>
+        <td id="manautomode"></td>
+        <td id="manauto" >
+          <button class="cmdbtn" id="cmdman" style="float: left" onclick="sendcmd('CMDMAN')">Руч</button> <button class="cmdbtn" id="cmdauto" onclick="sendcmd('CMDAUTO')">Авт</button> 
+        </td>
+        </tr>
+        <tr>
+        <td id="actstate"></td>
+        <td id="opncls" >
+          <button class="cmdbtn" id="cmdopn" style="float: left" onclick="sendcmd('CMDOPN')">OPN</button> <button class="cmdbtn" id="cmdcls" onclick="sendcmd('CMDCLS')">CLS</button> 
+        </td>
+        </tr>
+      </table>
+      <div id="actfields"> </div>
+    </div>  
+  </div>
+  <script type="text/javascript">    
+    var actname = '%ACTNAME%';
+    console.log (actname);
+    var acts = {};
+    var actsel = {};
+    let xhttp = new XMLHttpRequest ();
+    url = '/apiv1/RT/PLC1/ACTH';
+    xhttp.open ('GET', url, true);
+    xhttp.send();
+    
+    var lenprev =0;
+    xhttp.onreadystatechange = function () {
+      if (this.readyState === 4 && this.status === 200) {
+        //console.log (xhttp.responseText);
+        if (xhttp.responseText.length<5) return; 
+        let btns = document.getElementsByClassName('cmdbtn');
+        for (let elm of btns){elm.style.backgroundColor = ''};
+        let text = xhttp.responseText.replace (/true/g, "1");   
+        text = text.replace (/false/g, "0");
+        //text = text.replace (/ID/g, 'id');
+        content = JSON.parse (text);
+        if (content.p && content.twn && content.v && content.ts) {
+          if (typeof (twns[content.twn]) === 'undefined') twns[content.twn] = {};
+          let twn = twns[content.twn];
+          let v = twn[content.p] = content.v;  
+
+          acts = v;
+          //updateactinfo();
+          if (actsel.name && v[actsel.name]) {
+            //console.log (actsel.name)
+            updateactinfo(actsel.name);
+          } else {
+            for (let actname in acts) {
+              updateactinfo(actname);
+              break
+            }  
+          }
+        Ї  
+      } 
+    }
+    var timer = setInterval (function () {
+      if (xhttp.readyState > 1 && xhttp.readyState < 4) return;
+      xhttp.open ('GET', url, true);
+      xhttp.send();
+    }, 500);
+
+    function sendcmd (cmd) {
+      let urlcmd = url + '/' + actsel.name; 
+      let body = JSON.stringify ({CMD:cmd});
+      xhttp.open ('PUT', urlcmd, true);
+      xhttp.setRequestHeader("Content-Type", "application/json");
+      xhttp.send(body);
+      let btn = document.getElementById(cmd.toLowerCase());
+      btn.style.backgroundColor = 'white';
+    }
+
+    function jsontotable (vars, columnsformater, tabledata1){
+      for (varname in vars) {
+        let var1 = vars[varname];
+        let row = {};
+        for (column of columnsformater) {
+          fieldname = column.field;
+          strval = var1[fieldname];
+          let val = '';
+          if (typeof strval === 'object') {
+            val = strval.val;
+          } else {
+            val = strval;
+          }
+          if (fieldname === 'DISP') {
+            val = (val == 1)? '<span  style="background-color:blue">РУЧ</span>' : '<span>АВТ</span>';
+          }
+          row[fieldname] = val;
+          //console.log (val);
+        } 
+        row.name = varname;
+        row.id = var1.ID; 
+        tabledata1.push (row);  
+      } 
+    } 
+    
+    //updateactinfo();
+    function updateactinfo (actname){
+      if (!acts[actname]) return;
+      actsel.RT = acts[actname];
+      actsel.name = actname;
+
+      let fieldactname = document.getElementById ("actname");
+      let actfields = document.getElementById ("actfields");
+      let actconntent = `<table><tr><th>Позн</th><th>Стан</th></tr>`
+      for (let fieldname in actsel.RT) {
+        if (typeof (actsel.RT[fieldname].val) !== 'undefined') { //!actsel.RT[fieldname].type &&
+          actconntent += `<tr title="${actsel.RT[fieldname].descr}"><td>${fieldname}</td><td>${actsel.RT[fieldname].val}</td></tr>`
+        }  
+      }
+      actconntent += '</table>';
+      if (typeof (acts[actname].DISP && acts[actname].DISP.val) !== 'undefined') { 
+        let htmltxt = '';
+        if (acts[actname].DISP.val == 1) {
+          htmltxt = '<span  style="background-color:blue">РУЧ</span>' 
+        } else {
+          htmltxt = '<span>АВТ</span>'  
+        }
+        document.getElementById ("manautomode").innerHTML = htmltxt;
+      }
+      if (typeof (acts[actname].stapos) !== 'undefined') { 
+        let htmltxt =  `<span  style="background-color:${acts[actname].staclr.val}">${acts[actname].stapos.val}</span>`  ;
+        document.getElementById ("actstate").innerHTML = htmltxt;
+      }        
+      fieldactname.innerHTML = actsel.RT.descr + ' (' + actname + ')';
+      actfields.innerHTML = actconntent;
+      //actname.updateData();
+    }
+  </script>
+
+</body>
+</html>
+

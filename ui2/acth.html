@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Document</title>
+  <link href="tabulator.min.css" rel="stylesheet"/>
+  <script type="text/javascript" src="ui2main.js"></script>   
+</head>
+<body>
+  <div id="body" style="display: inline; margin-top: 10%;">
+    <div id="example-table" style="float: left; width: 70%;   margin-left: 1%;margin-right: 1%;"></div>
+    <div id="ctrl" style="float: left; width: 20%;   margin-left: 1%;margin-right: 1%;">
+      <p id="actname"></p>
+      <table>
+        <tr>
+        <td id="manautomode"></td>
+        <td id="manauto" >
+          <button class="cmdbtn" id="cmdman" style="float: left" onclick="sendcmd('CMDMAN')">Руч</button> <button class="cmdbtn" id="cmdauto" onclick="sendcmd('CMDAUTO')">Авт</button> 
+        </td>
+        </tr>
+        <tr>
+        <td id="actstate"></td>
+        <td id="opncls" >
+          <button class="cmdbtn" id="cmdopn" style="float: left" onclick="sendcmd('CMDOPN')">OPN</button> <button class="cmdbtn" id="cmdcls" onclick="sendcmd('CMDCLS')">CLS</button> 
+        </td>
+        </tr>
+        <tr>
+          <td id="cfg">
+            <a id="cmdcfg" href="">Конфігурування</a>  
+          </td>
+        </tr>        
+      </table>
+      <div id="actfields"> </div>
+    </div>  
+  </div>
+  <script type="text/javascript" src="tabulator.min.js"></script>
+  <script type="text/javascript"> 
+    let url = ''; 
+    var columnsformater1 = [ //Define Table Columns
+        {title:"Назва", field:"name", width:100, headerFilter:"input"},
+        {title:"Опис", field:"description", width:250, headerFilter:"input"},
+        {title:"Тип", field:"type", width:150, editor:"select", headerFilter:true, headerFilterParams:
+          {values:{"":"ALL"}} 
+        },        
+        {title:"Поз%", field:"POS", width:50},
+        {title:"Стан", field:"stapos", width:100},
+        {title:"С", field:"staclr", width:10, formatter:"color"},
+        {title:"Руч", field:"DISP", width:50, formatter:"html"},                
+        {title:"ALM", field:"ALM", width:10,formatter:"traffic", formatterParams:{min:0, max:1, color:["grey", "red"]}},
+        {title:"WRN", field:"WRN", width:10,formatter:"traffic", formatterParams:{min:0, max:1, color:["grey", "red"]}},
+        {title:"INBUF", field:"INBUF", width:10,formatter:"traffic", formatterParams:{min:0, max:1, color:["grey", "red"]}},
+        {title:"FRC", field:"FRC", width:10,formatter:"traffic", formatterParams:{min:0, max:1, color:["grey", "kblue"]}},
+        {title:"SML", field:"SML", width:10,formatter:"traffic", formatterParams:{min:0, max:1, color:["grey", "black"]}},
+        {title:"ID", field:"ID", width:20},
+        {title:"CLSID", field:"CLSID", width:40},
+      ];
+  
+    //define some sample data
+    var tabledata = [ ];
+    var acts = {};
+    var actsel = {};
+    let xhttp = new XMLHttpRequest ();
+    url = '/apiv1/RT/acts';
+    xhttp.open ('GET', url, true);
+    xhttp.send();
+    
+    var lenprev =0;
+    xhttp.onreadystatechange = function () {
+      if (this.readyState === 4 && this.status === 200) {
+        //console.log (xhttp.responseText);
+        if (xhttp.responseText.length<5) return; 
+        let btns = document.getElementsByClassName('cmdbtn');
+        for (let elm of btns){elm.style.backgroundColor = ''};
+        let text = xhttp.responseText.replace (/true/g, "1");   
+        text = text.replace (/false/g, "0");
+        content = JSON.parse (text);
+        if (content.p && content.twn && content.v && content.ts) {
+          if (typeof (twns[content.twn]) === 'undefined') twns[content.twn] = {};
+          let twn = twns[content.twn];
+          let v = twn[content.p] = content.v; 
+          acts = v;
+          //updateactinfo();
+          if (actsel.name && v[actsel.name]) {
+            //console.log (actsel.name)
+            updateactinfo(actsel.name);
+          } else {
+            let acttypes = {};
+            for (let actname in acts) {
+              updateactinfo(actname);         
+              break
+            }
+            for (let actname in acts) {
+              acttypes[acts[actname].type] = acts[actname].type.replace('_HMI','');               
+            }
+            //console.log (acttypes);
+            for (colformat of columnsformater1){
+              if (colformat.field === "type") {
+                colformat.headerFilterParams.values[""]='ALL';
+                for (typename in acttypes) {
+                  colformat.headerFilterParams.values[typename] = acttypes[typename];
+                }
+              } 
+            }  
+          }
+          let a = document.getElementById ("cmdcfg");
+          a.setAttribute("href", 'actcfg.html?ACTNAME=' + actsel.name);
+          //actsel.actname;
+          //responseType
+          let tabledata1 = [];
+          jsontotable (v, columnsformater1, tabledata1);   
+          if (tabledata1.length !== lenprev) {
+            table.setData(tabledata1);
+          } else { 
+            //table.setData(tabledata1); 
+            table.updateData(tabledata1);  
+          }  
+          lenprev = tabledata1.length;
+          //console.log (xhttp.responseText);
+          //table.setData();
+          //обробка 
+        }
+      }   
+    }
+    var timer = setInterval (function () {
+      if (xhttp.readyState > 1 && xhttp.readyState < 4) return;
+      xhttp.open ('GET', url, true);
+      xhttp.send();
+    }, 500);
+
+    //create Tabulator on DOM element with id "example-table"
+    var table = new Tabulator("#example-table", {
+      height:400, // set height of table (in CSS or here), this enables the Virtual DOM and improves render speed dramatically (can be any valid css height value)
+      data:tabledata, //assign data to table
+      layout:"fitColumns", //fit columns to width of table (optional)
+      columns: columnsformater1,
+      rowClick:function(e, row){ //trigger an alert message when the row is clicked
+        updateactinfo(row.getCell("name").getValue());
+        //alert("Row " + row.getCell("name").getValue() + " Clicked!!!!");
+      },
+    });
+
+    function sendcmd (cmd) {
+      let urlcmd = url + '/' + actsel.name; 
+      let body = JSON.stringify ({CMD:cmd});
+      xhttp.open ('PUT', urlcmd, true);
+      xhttp.setRequestHeader("Content-Type", "application/json");
+      xhttp.send(body);
+      let btn = document.getElementById(cmd.toLowerCase());
+      btn.style.backgroundColor = 'white';
+    }
+
+    function jsontotable (vars, columnsformater, tabledata1){
+      for (varname in vars) {
+        let var1 = vars[varname];
+        let row = {};
+        for (column of columnsformater) {
+          fieldname = column.field;
+          strval = var1[fieldname];
+          let val = '';
+          if (typeof strval === 'object') {
+            val = strval.val;
+          } else {
+            val = strval;
+          }
+          if (fieldname === 'DISP') {
+            val = (val == 1)? '<span  style="background-color:blue">РУЧ</span>' : '<span>АВТ</span>';
+          }
+          row[fieldname] = val;
+          //console.log (val);
+        } 
+        row.name = varname;
+        row.id = var1.ID; 
+        tabledata1.push (row);  
+      } 
+    } 
+    
+    //updateactinfo();
+    function updateactinfo (actname){
+      if (!acts[actname]) return;
+      actsel.RT = acts[actname];
+      actsel.name = actname;
+
+      let fieldactname = document.getElementById ("actname");
+      let actfields = document.getElementById ("actfields");
+      let actconntent = `<table><tr><th>Позн</th><th>Стан</th></tr>`
+      for (let fieldname in actsel.RT) {
+        if (typeof (actsel.RT[fieldname].val) !== 'undefined') { //!actsel.RT[fieldname].type &&
+          actconntent += `<tr title="${actsel.RT[fieldname].descr}"><td>${fieldname}</td><td>${actsel.RT[fieldname].val}</td></tr>`
+        }  
+      }
+      actconntent += '</table>';
+      if (typeof (acts[actname].DISP && acts[actname].DISP.val) !== 'undefined') { 
+        let htmltxt = '';
+        if (acts[actname].DISP.val == 1) {
+          htmltxt = '<span  style="background-color:blue">РУЧ</span>' 
+        } else {
+          htmltxt = '<span>АВТ</span>'  
+        }
+        document.getElementById ("manautomode").innerHTML = htmltxt;
+      }
+      if (typeof (acts[actname].stapos) !== 'undefined') { 
+        let htmltxt =  `<span  style="background-color:${acts[actname].staclr.val}">${acts[actname].stapos.val}</span>`  ;
+        document.getElementById ("actstate").innerHTML = htmltxt;
+      }        
+      fieldactname.innerHTML = actsel.RT.descr + ' (' + actname + ')';
+      actfields.innerHTML = actconntent;
+      //actname.updateData();
+    }
+  </script>
+
+</body>
+</html>
+

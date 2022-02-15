@@ -4,13 +4,14 @@ let path = require('path');
 const xmlparser = require('xml-js'); //https://www.npmjs.com/package/xml-js
 const ini = require('ini');//https://github.com/npm/ini#readme 
 //const config = ini.parse (fs.readFileSync(global.inipath, 'utf-8'));
-const userdir = path.normalize(os.homedir()+'/pacframeworktools');;
+const userdir = path.normalize(os.homedir()+'/pacframeworktools');
 const masterdatatools = require ('./masterdatatools');
 
 const opts = {
   logpath: 'log',
   logfile: 'general.log',
-  resultpath: 'tounitypro'
+  resultpath: 'tounitypro',
+  source: 'source'
 };
 
 masterdatatools.opts.logfile = opts.logfile; 
@@ -65,6 +66,8 @@ function create_vars (cfgtags) {
   addvar_to_dataBlock ('DOH', 'DOH', jsdataBlock);
   addvar_to_dataBlock ('AIH', 'AIH', jsdataBlock);
   addvar_to_dataBlock ('AOH', 'AOH', jsdataBlock);
+  addvar_to_dataBlock ('VARBUF', 'VARBUF', jsdataBlock);
+
   let jsDDTSource = [];
   jsDDTSource.push (createDDTSource ('VARS', cfgtags, 'VAR_CFG'));
   jsDDTSource.push (createDDTSource ('DIH', cfgtags, 'DIVAR_HMI'));
@@ -95,9 +98,13 @@ function create_vars (cfgtags) {
   jsprog = createinitvarsprogram (cfgtags, 'SR', 'MAST'); 
   jsSTExchangeFile.STExchangeFile.program = jsprog;
   let xmlcontent = xmlxddheader + xmlparser.js2xml(jsSTExchangeFile, {compact: true, ignoreComment: true, spaces: 4, fullTagEmptyElement:true});
-  let filename = userdir + '\\' + opts.resultpath + '\\INITVARS.xst'; 
+  let filename = userdir + '\\' + opts.resultpath + '\\initvars.xst'; 
   fs.writeFileSync (filename, xmlcontent);
   logmsg (` Файл імпорту ${filename} створено.`);
+  
+  //файли імпорту для операторських екранів
+  logmsg (` Створюю файли імпорту для операторських екранів`);
+  create_operscrvars (cfgtags);
 } 
 
 
@@ -271,16 +278,16 @@ function addvar_to_dataBlock (varname, vartype, jsdataBlock){
 function createiovarsprogram (cfgtags, secttype = 'SR', task = 'MAST') {
   let bodyDIVARS = '', bodyDOVARS = '', bodyAIVARS = '', bodyAOVARS = '';
   let jsdivarsprog = {
-    identProgram : {_attributes: {name: "DIVARS", type: secttype, task: task}},
+    identProgram : {_attributes: {name: "divars", type: secttype, task: task}},
     STSource: {}}
   let jsdovarsprog = {
-    identProgram : {_attributes: {name: "DOVARS", type: secttype, task: task}},
+    identProgram : {_attributes: {name: "dovars", type: secttype, task: task}},
     STSource: {}}
   let jsaivarsprog = {
-    identProgram : {_attributes: {name: "AIVARS", type: secttype, task: task}},
+    identProgram : {_attributes: {name: "aivars", type: secttype, task: task}},
     STSource: {}};
   let jsaovarsprog = {
-    identProgram : {_attributes: {name: "AOVARS", type: secttype, task: task}},
+    identProgram : {_attributes: {name: "aovars", type: secttype, task: task}},
     STSource: {}}
   
   const tags = [];
@@ -325,7 +332,7 @@ function createiovarsprogram (cfgtags, secttype = 'SR', task = 'MAST') {
 
 function createinitvarsprogram (cfgtags, secttype = 'SR', task = 'MAST'){
   let jsprog = {
-    identProgram : {_attributes: {name: "INITVARS", type: secttype, task: task}},
+    identProgram : {_attributes: {name: "initvars", type: secttype, task: task}},
     STSource: {}}
   let bodyprog = '';
   
@@ -340,7 +347,7 @@ function createinitvarsprogram (cfgtags, secttype = 'SR', task = 'MAST'){
     let tagname = tag.props.TAGNAME; 
     let chid =  tag.props.TAGNAME.substr(0, 3).toLowerCase()==='rez' ? 0 : tag.props.CHID; 
     let id = tag.props.ID.toString();
-    jsprog += `VARS.${tagname}.ID:=${id}; VARS.${tagname}.CHID:=${chid}; VARS.${tagname}.CHIDDF:=${chid};`
+    jsprog.STSource += `VARS.${tagname}.ID:=${id}; VARS.${tagname}.CHID:=${chid}; VARS.${tagname}.CHIDDF:=${chid};\n`
     //VARS.VNabor_T1_OPN.ID:=10001;  VARS.VNabor_T1_OPN.CHID:=1;   VARS.VNabor_T1_OPN.CHIDDF:=1;     
   }
   const progdescr = '(* Ця секція згенерована автоматично PACFramework Tools ' + (new Date()).toLocaleString() + '*)\n';
@@ -348,6 +355,137 @@ function createinitvarsprogram (cfgtags, secttype = 'SR', task = 'MAST'){
   return jsprog
 }
 
+
+
+
+function create_operscrvars (cfgtags){
+  let replacers = {DI:[], DO:[], AI:[], AO:[]};
+  for (tagname in cfgtags.tags) {
+    let tag = cfgtags.tags[tagname];
+    if (tag.props.TYPE) {
+      replacers[tag.props.TYPE].push ({main:tagname});
+    }
+  }  
+  operatorscreen_dupreplace('divar.xcr', 'DIH', replacers.DI, 'DIVARS');
+  operatorscreen_dupreplace('dovar.xcr', 'DOH', replacers.DO, 'DOVARS');
+  operatorscreen_dupreplace('aivar.xcr', 'AIH', replacers.AI, 'AIVARS');  
+  operatorscreen_dupreplace('aovar.xcr', 'AOH', replacers.AO, 'AOVARS');
+
+} 
+function operatorscreen_dupreplace (filename, prefix = 'DIH', replacer, newscreenname, elmsperpage = 32 ){
+  //elmsperpage - поділ на сторінки, to do
+  let fullfilename = userdir + '\\' + opts.source + '\\' + filename;
+  let xmlorig;
+  try {
+    xmlorig = fs.readFileSync (fullfilename, 'utf8')
+  } catch (error) {
+    logmsg (`Не вдалося завантажити файл ${fullfilename}, перевірте наявність файлу`);
+    return
+  }
+  //<screen name="PACFramework_DIVAR"
+  let oldscreenname = xmlorig.split('<screen name="')[1].split('"')[0];
+  xmlorig = xmlorig.replace ('<screen name="' + oldscreenname, '<screen name="' + newscreenname)
+  //console.log (oldscreenname);
+  let xmlar = xmlorig.replace(/<object/g, '!!!!!!!!!!<object').replace(/<\/screen>/g, '!!!!!!!!!!<\/screen>').split('!!!!!!!!!!');
+  //пошук prefix
+  prefix = 'name="' + prefix + '.'; 
+  let group, isgroup = false, i=0;
+  let found = false;
+  for (j=0; j<xmlar.length; j++) {
+    txtline = xmlar [j];
+    let pos = txtline.search ('<object objectID="2"')
+    if (pos>=0) {
+      i = 0;
+      isgroup = true;
+      xmlline = xmlparser.xml2js(txtline, {compact: true});
+      let ob = xmlline.object._attributes.description;
+      let cord = ob.replace('(','').split('),')[0].split(','); 
+      group = {
+        txtelm: [],
+        props : {
+          start: j,  
+          content:txtline,
+          mainoldlink:'',  
+          y1:parseInt(cord[0]), 
+          x1:parseInt(cord[1]), 
+          y2:parseInt(cord[2]), 
+          x2:parseInt(cord[3]), 
+          cnt: parseInt(ob.replace('(','').split('),')[1])
+        }
+      };
+    } else if (isgroup===true){ //ми поки в групі  
+      group.txtelm.push (txtline);
+      i++;
+      if (i>=group.props.cnt) {//останній елемент в групі
+        isgroup = false; 
+        group.props.end = j;
+        if (found === true) { //шукана група
+          break; //завершуємо пошук
+        } 
+      }
+      //console.log (xmlparser.xml2js(txtline, {compact: true}))
+    }
+    pos = txtline.search (prefix);
+    if (isgroup && pos>=0) {
+      group.props.mainoldlink = txtline.split(prefix)[1].split('.')[0];
+      found = true;
+    } 
+  }
+  //обробка знайденого
+  if (found === true) {
+    let i = group.props.end + 1;//починаємо вставку з останнього елементу
+    let newlink = '';
+    for (let j=1; j<replacer.length; j++){
+      let y1 = group.props.y2 + 1;
+      let deltay = group.props.y2 - group.props.y1; 
+      let txtelm = '';
+      newlink = replacer[j].main;
+      //створення нової копії
+      txtelm = screenelm_replace (group.props.content, 0, deltay, group.props.mainoldlink, newlink);
+      xmlar.splice(i, 0, txtelm);//вставляємо позначення групи
+      i++;
+      for (let k=0; k< group.props.cnt; k++){
+        txtelm = screenelm_replace (group.txtelm[k], 0, deltay*j, group.props.mainoldlink, newlink);
+        //кординати, зміст
+        xmlar.splice(i, 0, txtelm);//вставляємо в i-ту позицію k-й елемент групи, видаляємо 0 елементів
+        i++;
+      }
+    } 
+    //заміна властивостей існуючого елементу
+    newlink = replacer[0].main;
+    txtelm = screenelm_replace (group.props.content, 0, 0, group.props.mainoldlink, newlink);
+    xmlar[group.props.start] = txtelm;
+    for (let k=0; k< group.props.cnt; k++){
+      txtelm = screenelm_replace (group.txtelm[k], 0, 0, group.props.mainoldlink, newlink);
+      xmlar[group.props.start + k + 1] = txtelm;
+    }
+    //console.log (group);
+    let xmlout = xmlar.join('');
+    //console.log (xmlout);
+    let outfilename = userdir + '\\' + opts.resultpath + '\\' + filename;
+    fs.writeFileSync (outfilename, xmlout);
+    logmsg (`Файл імпорту операторських екранів ${outfilename} створено`);    
+  } 
+  
+  //
+  //console.log (jscontent.SCRExchangeFile.IOScreen.screen.object);
+  //console.log (xmlar.length);
+} 
+
+function screenelm_replace (elem, dtx=0, dty=0, oldlink, newlink){
+  elem = elem.replace(oldlink, newlink); 
+  let part1 = elem.split('description="(')[0] + 'description="(';
+  let part2 = elem.split('description="(')[1].split('),')[0];
+  let part3 = elem.split(part2)[1];
+  let arcord = part2.split(',')
+  arcord[0]= parseInt(arcord[0])+dty;
+  arcord[2]= parseInt(arcord[2])+dty;
+  arcord[1]= parseInt(arcord[1])+dtx;
+  arcord[3]= parseInt(arcord[3])+dtx;
+  let newtxt = part1 + arcord.join() + part3;  
+  //console.log (newtxt); 
+  return newtxt 
+}
 
 module.exports = {
   create_all

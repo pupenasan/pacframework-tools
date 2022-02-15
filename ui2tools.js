@@ -3,6 +3,8 @@ let crypto = require('crypto');
 const fs = require ('fs');
 const couchtools = require ('./couchtools'); 
 const masterdatatools = require('./masterdatatools');
+const modeCfb = require('crypto-js/mode-cfb');
+const { Module } = require('module');
 
 couchtools.opts.user = process.env.COUCH_USER;
 couchtools.opts.password = process.env.COUCH_PASS;
@@ -17,7 +19,7 @@ const writetolog = masterdatatools.writetolog;
 async function updateui2(twinname, uploadall=false) {
   let now = new Date();
   let files = [], ui2info = {};
-  let uipath = './ui2';
+  let uipath =  __dirname + '/ui2';
   let filenames = fs.readdirSync(uipath);
   let needupdate = false;
   let doc;
