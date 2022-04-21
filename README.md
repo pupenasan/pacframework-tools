@@ -2,7 +2,7 @@
 
 Програмні утиліти для автоматизації процесів розробки [PACFramework](https://github.com/pupenasan/PACFramework) та [PACFramework IoT Gateway](https://github.com/pupenasan/PACFrameworkIoTGateway). 
 
-## Інсталяція
+## Інсталювання
 
 Передбачається що утиліти вкористовуватимуться на ОС Windows 10. Для використання утиліт необхідно:
 
@@ -21,13 +21,13 @@ cd C:\pacfwtools
 npm install pacframework-tools@latest
 ```
 
-- зробити ініціалізацію застосунку, що створить необхідну робочц папку в домашній диеркторії користувача (`%Userprofile%\pacframeworktools\`) та файли:
+- зробити ініціалізацію застосунку, що створить необхідну робочу папку в домашній директорії користувача (`%Userprofile%\pacframeworktools\`) та файли:
 
 ```
 node C:\pacfwtools\node_modules\pacframework-tools\index
 ```
 
-Можна завнтажити і запустити командний файл `install.cmd` з директорії репозиторія, який має наступний зміст
+Можна звантажити і запустити командний файл `install.cmd` з директорії репозиторія, який має наступний зміст
 
 ```bash
 md C:\pacfwtools
@@ -35,6 +35,15 @@ cd C:\pacfwtools
 npm install pacframework-tools@latest
 node C:\pacfwtools\node_modules\pacframework-tools\index
 explorer \n, "%Userprofile%\pacframeworktools\"
+```
+
+## Оновлення
+
+Для оновлення до останньої версії треба з командного вікна перейти в директорію застосунку запустити команду для інсталювання застосунку, який поставить останню версію pacframework-tools:
+
+```bash
+cd C:\pacframeworktools
+npm install pacframework-tools@latest
 ```
 
 ## Загальні принципи використання

@@ -1,34 +1,40 @@
-const os = require('os');
-const path = require ('path');
-const fs = require ('fs');
-global.userdir = path.normalize(os.homedir()+'/pacframeworktools');
-global.inipath = path.normalize(os.homedir()+'/pacframeworktools/config.ini');
+const os = require("os");
+const path = require("path");
+const fs = require("fs");
+global.userdir = path.normalize(os.homedir() + "/pacframeworktools");
+global.inipath = path.normalize(os.homedir() + "/pacframeworktools/config.ini");
 
 //створення папки користувача
-if  (fs.existsSync(userdir) === false) {
-  fs.mkdirSync (userdir);
-  console.log ('Створив директорію в ' + userdir);  
+if (fs.existsSync(userdir) === false) {
+  fs.mkdirSync(userdir);
+  console.log("Створив директорію в " + userdir);
 }
 
-const ini = require('ini');//https://github.com/npm/ini#readme 
-if  (fs.existsSync(userdir + '/config.ini') === false) {
+const ini = require("ini"); //https://github.com/npm/ini#readme
+if (fs.existsSync(userdir + "/config.ini") === false) {
   //%Userprofile%
-  inicontent = fs.readFileSync (__dirname+ '/config_sample.ini','utf8');
-  inicontent = inicontent.replace (/%Userprofile%/g, path.normalize(os.homedir()));
-  fs.writeFileSync ( userdir + '/config.ini', inicontent, 'utf8');
-  console.log ('Створив директорії ' + userdir + ' файл config.ini, заповніть налаштування');
-  process.exit ();
+  inicontent = fs.readFileSync(__dirname + "/config_sample.ini", "utf8");
+  inicontent = inicontent.replace(
+    /%Userprofile%/g,
+    path.normalize(os.homedir())
+  );
+  fs.writeFileSync(userdir + "/config.ini", inicontent, "utf8");
+  console.log(
+    "Створив директорії " + userdir + " файл config.ini, заповніть налаштування"
+  );
+  process.exit();
 }
-const config = ini.parse (fs.readFileSync(userdir + '/config.ini', 'utf-8'));
+const config = ini.parse(fs.readFileSync(userdir + "/config.ini", "utf-8"));
 
-const tiaparsetools = require ('./tiaparsetools'); //модуль для конвертування змісту проекту TIA в Master Data
-const exceltools = require ('./exceltools'); //
-const masterdatatools = require ('./masterdatatools');
-const reptools = require ('./reptools');
-const tiacreatetools = require ('./tiacreatetools');
-const seuncreatetools = require ('./seuncreatetools');
-const couchtools = require ('./couchtools'); 
-const ui2tools = require ('./ui2tools');
+const tiaparsetools = require("./tiaparsetools"); //модуль для конвертування змісту проекту TIA в Master Data
+const exceltools = require("./exceltools"); //
+const masterdatatools = require("./masterdatatools");
+const reptools = require("./reptools");
+const tiacreatetools = require("./tiacreatetools");
+const seuncreatetools = require("./seuncreatetools");
+const couchtools = require("./couchtools");
+const ui2tools = require("./ui2tools");
+const wincctoos = require("./wincctools");
 
 //скорочені назви функцій
 const logmsg = masterdatatools.logmsg;
@@ -39,45 +45,51 @@ couchtools.opts.password = process.env.COUCH_PASS;
 let twinname = config.general.twinname;
 
 switch (process.argv[2]) {
-  case 'getcfgfromxls':
+  case "getcfgfromxls":
     getcfgfromxls();
     break;
-  case 'seuncreateall':
+  case "seuncreateall":
     seuncreateall();
     break;
-  case 'tiacreateall':
+  case "tiacreateall":
     tiacreateall();
     break;
-  case 'tiaparseall':
+  case "tiaparseall":
     tiaparseall();
     break;
-  case 'updateui2':
-    ui2tools.updateui2(twinname, false);//(twinname, true);
+  case "updateui2":
+    ui2tools.updateui2(twinname, false); //(twinname, true);
     break;
-  case '':
-    break;   
+  case "wincccreatealm":
+    mastertags_to_almlist();
+    masteracts_to_almlist();
+  case "":
+    break;
+  case undefined:
+    console.log("Робоча директорія вже була проініціалізована до цього!");
+    break;
   default:
-    console.log ('Немає такої утиліти')
+    console.log("Немає такої утиліти");
     break;
 }
 
 //паристь усі файли з tia
 async function tiaparseall() {
-  let plcmasterdata = tiaparsetools.tiaparseall ();
-  await couchtools.doc_toCouchdb(plcmasterdata, twinname, 'plcmasterdata');
+  let plcmasterdata = tiaparsetools.tiaparseall();
+  await couchtools.doc_toCouchdb(plcmasterdata, twinname, "plcmasterdata");
 }
 
 //створює файли Unity_PRO по конфігураційним налаштуванням
-function seuncreateall(){
+function seuncreateall() {
   let cfg = getcfgfromxls();
-  seuncreatetools.create_all (cfg.cfgchs, cfg.cfgtags, cfg.cfgacts)
-} 
+  seuncreatetools.create_all(cfg.cfgchs, cfg.cfgtags, cfg.cfgacts);
+}
 
-function tiacreateall (){
-  tiacreatetools.opts.resultpath  = config.tiacreatetools.pathresult + '/';
+function tiacreateall() {
+  tiacreatetools.opts.resultpath = config.tiacreatetools.pathresult + "/";
   let cfg = getcfgfromxls();
   tiacreatetools.create_all(cfg.cfgchs, cfg.cfgtags, cfg.cfgacts);
- 
+
   /*let content ={};
   logmsg ('-------------------- Створення програмних блоків для TIA'); 
   let cfgtagsfilemaster = tiaresultfiles + 'cfg_tags.json';
@@ -96,66 +108,117 @@ function tiacreateall (){
   */
 }
 
-function getcfgfromxls () {
-  exceltools.opts.logpath = 'log';
-  exceltools.opts.logfile = 'exceltools.log';
-  masterdatatools.opts.logfile = 'test.log';
-  let cfgtags = getcfgtags_fromxls ();
+function getcfgfromxls() {
+  exceltools.opts.logpath = "log";
+  exceltools.opts.logfile = "exceltools.log";
+  masterdatatools.opts.logfile = "test.log";
+  let cfgtags = getcfgtags_fromxls();
   let cfgacts = getcfacts_fromxls(cfgtags);
 
   let cfgchs = {};
-  let cfgchmap = chsmap_fromcfg (cfgchs, cfgtags);
+  let cfgchmap = chsmap_fromcfg(cfgchs, cfgtags);
 
-  let filcfgtags = config.exceltools.pathresult + '/' + 'cfg_tags.json';
-  fs.writeFileSync (filcfgtags, JSON.stringify (cfgtags), 'utf8');
-  logmsg (`Файл ${filcfgtags} записано`); 
+  //створення папки результату, якщо її немає
+  if (fs.existsSync(config.exceltools.pathresult) === false) {
+    fs.mkdirSync(config.exceltools.pathresult);
+    console.log("Створив директорію " + config.exceltools.pathresult);
+  }
 
-  let filcfgchs = config.exceltools.pathresult + '/' + 'cfg_chs.json';
-  fs.writeFileSync (filcfgchs, JSON.stringify (cfgchs), 'utf8');
-  logmsg (`Файл ${filcfgchs} записано`);
-  
-  let filecfgacts = config.exceltools.pathresult + '/' + 'cfg_acts.json';
-  fs.writeFileSync (filecfgacts, JSON.stringify (cfgacts), 'utf8');
-  logmsg (`Файл ${filecfgacts} записано`);
-  
-  let filecfgchmap = config.exceltools.pathresult + '/' + 'cfg_chmap.json';
-  fs.writeFileSync (filecfgchmap, JSON.stringify (cfgchmap), 'utf8');
-  logmsg (`Файл ${filecfgchmap} записано`);    
-  
+  let filcfgtags = config.exceltools.pathresult + "/" + "cfg_tags.json";
+  fs.writeFileSync(filcfgtags, JSON.stringify(cfgtags), "utf8");
+  logmsg(`Файл ${filcfgtags} записано`);
+
+  let filcfgchs = config.exceltools.pathresult + "/" + "cfg_chs.json";
+  fs.writeFileSync(filcfgchs, JSON.stringify(cfgchs), "utf8");
+  logmsg(`Файл ${filcfgchs} записано`);
+
+  let filecfgacts = config.exceltools.pathresult + "/" + "cfg_acts.json";
+  fs.writeFileSync(filecfgacts, JSON.stringify(cfgacts), "utf8");
+  logmsg(`Файл ${filecfgacts} записано`);
+
+  let filecfgchmap = config.exceltools.pathresult + "/" + "cfg_chmap.json";
+  fs.writeFileSync(filecfgchmap, JSON.stringify(cfgchmap), "utf8");
+  logmsg(`Файл ${filecfgchmap} записано`);
+
   reptools.opts.pathresultmd = config.reptools.pathresultmd;
-  reptools.repacchscfg (cfgchs, cfgtags); 
-  logmsg (`Звіт записано`);
+  reptools.repacchscfg(cfgchs, cfgtags);
+  logmsg(`Звіт записано`);
 
-  reptools.opts.pathresultmd = config.reptools.pathresultmd + '/acts';
-  reptools.repactuators (cfgacts); 
-  logmsg (`Звіт записано`);
-  
-  writetolog (1);
-  return {cfgchs, cfgtags, cfgacts};
+  reptools.opts.pathresultmd = config.reptools.pathresultmd + "/acts";
+  reptools.repactuators(cfgacts);
+  logmsg(`Звіт записано`);
+
+  writetolog(1);
+  return { cfgchs, cfgtags, cfgacts };
 }
 
-function getcfgtags_fromxls () {
-  logmsg ('-------------------- Отримання мастерданих про теги з Excel'); 
-  filexls = config.exceltools.pathsource + '/' + config.exceltools.pathxlsfile;
+function getcfgtags_fromxls() {
+  logmsg("-------------------- Отримання мастерданих про теги з Excel");
+  filexls = config.exceltools.pathsource + "/" + config.exceltools.pathxlsfile;
   let cfgtags = {};
-  cfgtags = exceltools.getcfgtags_fromxls (filexls);
-  return cfgtags   
+  cfgtags = exceltools.getcfgtags_fromxls(filexls);
+  return cfgtags;
 }
-function getcfacts_fromxls (cfgtags) {
-  logmsg ('-------------------- Отримання мастерданих про ВМ з Excel та мастерданих тегів'); 
-  filexls = config.exceltools.pathsource + '/' + config.exceltools.pathxlsfile;
-  let cfgacts_types = exceltools.getacttypes_fromxls (filexls);
-  let cfgacts = masterdatatools.getactrtsinfo (cfgtags, cfgacts_types)
-  return  cfgacts  
+function getcfacts_fromxls(cfgtags) {
+  logmsg(
+    "-------------------- Отримання мастерданих про ВМ з Excel та мастерданих тегів"
+  );
+  filexls = config.exceltools.pathsource + "/" + config.exceltools.pathxlsfile;
+  let cfgacts_types = exceltools.getacttypes_fromxls(filexls);
+  let cfgacts = masterdatatools.getactrtsinfo(cfgtags, cfgacts_types);
+  return cfgacts;
 }
-function chsmap_fromcfg (cfgchs, cfgtags){
-  let filexls = config.exceltools.pathsource + '/' + config.exceltools.pathxlsfile;
+function chsmap_fromcfg(cfgchs, cfgtags) {
+  let filexls =
+    config.exceltools.pathsource + "/" + config.exceltools.pathxlsfile;
   let chstype = exceltools.getchtypes_fromxls(filexls);
-  let cfgchmap = masterdatatools.chsmap_fromcfgfn (cfgchs, cfgtags, chstype);
-  masterdatatools.iomaptoplcform (cfgchs);
-  return (cfgchmap)
+  let cfgchmap = masterdatatools.chsmap_fromcfgfn(cfgchs, cfgtags, chstype);
+  masterdatatools.iomaptoplcform(cfgchs);
+  return cfgchmap;
+}
+
+function mastertags_to_almlist() {
+  let path1 = config.tiaparsetools.pathresult + "\\"; // "./exampledata/";
+  //отримання мастерданих про теги
+  let filemaster = path1 + "plc_tags.json";
+  if (fs.existsSync(filemaster)) {
+    let content = fs.readFileSync(filemaster, "utf8");
+    mastertags = JSON.parse(content);
+    let almlist = wincctoos.mastertags_to_almlist(mastertags.tags);
+    var BOM = "\uFEFF";
+    var csvContent = BOM + almlist; //для кирилиці
+    fs.writeFileSync(path1 + "wincc_almtags.csv", csvContent, {
+      codepage: 1251,
+    });
+    console.log(
+      "Список тривог для тегів створено в " + path1 + "wincc_almtags.csv"
+    );
+  } else {
+    console.log("Не вдалося створити файл wincc_almtags.csv");
+  }
+}
+
+function masteracts_to_almlist() {
+  let path1 = config.tiaparsetools.pathresult + "\\";
+  //отримання мастерданих про act
+  let filemaster = path1 + "plc_acts.json";
+  if (fs.existsSync(filemaster)) {
+    let content = fs.readFileSync(filemaster, "utf8");
+    masteracts = JSON.parse(content);
+    let almlist = wincctoos.masteracts_to_almlist(masteracts.acts);
+    var BOM = "\uFEFF";
+    var csvContent = BOM + almlist; //для кирилиці
+    fs.writeFileSync(path1 + "wincc_almacts.csv", csvContent, {
+      codepage: 1251,
+    });
+    console.log(
+      "Список тривог  для ВМ створено в " + path1 + "wincc_almacts.csv"
+    );
+  } else {
+    console.log("Не вдалося створити файл wincc_almacts.csv");
+  }
 }
 
 module.exports = {
-  tiaparseall
-}
+  tiaparseall,
+};
