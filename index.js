@@ -49,8 +49,18 @@ switch (process.argv[2]) {
     getcfgfromxls();
     break;
   case "seuncreateall":
-    seuncreateall();
+    seuncreate('all');
     break;
+  case "seuncreatechs":
+      seuncreate('chs');
+      break;
+  case "seuncreatevars":
+    seuncreate('vars');
+    break;
+  case "seuncreateacts":
+      seuncreate('acts');
+      break;
+
   case "tiacreateall":
     tiacreateall();
     break;
@@ -80,9 +90,22 @@ async function tiaparseall() {
 }
 
 //створює файли Unity_PRO по конфігураційним налаштуванням
-function seuncreateall() {
+function seuncreate(opts='all') {
   let cfg = getcfgfromxls();
-  seuncreatetools.create_all(cfg.cfgchs, cfg.cfgtags, cfg.cfgacts);
+  switch (opts) {
+    case 'chs':
+      seuncreatetools.create_chs(cfg.cfgchs);   
+      break;  
+    case 'vars':
+      seuncreatetools.create_vars (cfg.cfgtags);
+      break;
+    case 'acts':
+      seuncreatetools.create_actrtrs(cfg.cfgacts);
+      break;
+    case 'all':  
+    default:
+      seuncreatetools.create_all(cfg.cfgchs, cfg.cfgtags, cfg.cfgacts);
+  } 
 }
 
 function tiacreateall() {

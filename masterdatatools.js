@@ -385,7 +385,13 @@ function getactrtsinfo (cfgtags, cfgtypes) {
         logmsg (`WRN: Нзва тегу ${tagname} не співвідноситься з ${actname}`, 0);         
       }
       //встановлення опису ВМ з головної керівної назви 
-      if (!act.description && tagnamear[1] && tagnamear[1][0]==='A') { //друге слово починається з A
+      if (!act.description && tagnamear[1] && tagnamear[1][0]==='A') { //друге слово починається з A - кейс Енікон
+        let descr = tag.props.DESCRIPTION;
+        let start = descr.search (/\(/); //за опис беремо все що до дужок 
+        descr = (start > 0)? descr.substring (0, start): descr ; 
+        act.description = descr;
+        logmsg (`Встановив ${actname} назву ${descr}`, 0); 
+      } else if (!act.description && (tag.props.TYPE==='AO' || tag.props.TYPE==='DO')) { //кейс PACFramework
         let descr = tag.props.DESCRIPTION;
         let start = descr.search (/\(/); //за опис беремо все що до дужок 
         descr = (start > 0)? descr.substring (0, start): descr ; 
