@@ -277,10 +277,16 @@ function iomaptoplcform (cfgchs) {
   for (modulename in moduls){
     let module = moduls[modulename];
     let modulegenform = iomap.genform [modulename] = {};
-    modulegenform.submdicnt = Math.ceil(module.chdis.length/16);
-    modulegenform.submdocnt = Math.ceil(module.chdos.length/16);
-    modulegenform.submaicnt = Math.ceil(module.chais.length/16);
-    modulegenform.submaocnt = Math.ceil(module.chaos.length/16);
+    //канали можуть поичинатися не з 0, тому приводимо їх до канонічної форми, щоб рахувалися з 0 та не містили пустот
+    let chdis =[], chdos=[], chais=[], chaos=[]; //приведені масиви
+    for (ch of module.chdis) {if (typeof ch === 'object') chdis.push (ch)}
+    for (ch of module.chais) {if (typeof ch === 'object') chais.push (ch)}
+    for (ch of module.chdos) {if (typeof ch === 'object') chdos.push (ch)}
+    for (ch of module.chaos) {if (typeof ch === 'object') chaos.push (ch)}        
+    modulegenform.submdicnt = Math.ceil(chdis.length/16);
+    modulegenform.submdocnt = Math.ceil(chdos.length/16);
+    modulegenform.submaicnt = Math.ceil(chais.length/16);
+    modulegenform.submaocnt = Math.ceil(chaos.length/16);
     modulegenform.submodules = [
       {type:'0', chidstart:0, adrstart:0,chcnt:0},
       {type:'0', chidstart:0, adrstart:0,chcnt:0},
@@ -289,43 +295,43 @@ function iomaptoplcform (cfgchs) {
     ];
     let nmbsubmodule = 0;
     for (let i=0; i<modulegenform.submdicnt; i++) {
-      if (!module.chdis[i*16]) continue; //якщо є пропущені номери
-      let chidstart = module.chdis[i*16].id;  
+      if (!chdis[i*16]) continue; //якщо є пропущені номери
+      let chidstart = chdis[i*16].id;  
       modulegenform.submodules [nmbsubmodule] = {
         type:'1', 
         chidstart :  chidstart, 
         adrstart: chs.chdis[chidstart].adr, 
-        chcnt: i+1<module.submdicnt ? 16 : (module.chdis.length === 16) ? 16: (module.chdis.length % 16)};
+        chcnt: i+1<module.submdicnt ? 16 : (chdis.length === 16) ? 16: (chdis.length % 16)};
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submdocnt; i++) {
-      if (!module.chdos[i*16]) continue; //якщо є пропущені номери
-      let chidstart = module.chdos[i*16].id;  
+      if (!chdos[i*16]) continue; //якщо є пропущені номери
+      let chidstart = chdos[i*16].id;  
       modulegenform.submodules [nmbsubmodule] = {
         type:'2', 
         chidstart : chidstart, 
         adrstart: chs.chdos[chidstart].adr, 
-        chcnt: i+1<module.submdocnt ? 16 : (module.chdos.length === 16) ? 16: (module.chdos.length % 16)};
+        chcnt: i+1<module.submdocnt ? 16 : (chdos.length === 16) ? 16: (chdos.length % 16)};
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submaicnt; i++) {
-      if (!module.chais[i*16]) continue; //якщо є пропущені номери
-      let chidstart = module.chais[i*16].id;  
+      if (!chais[i*16]) continue; //якщо є пропущені номери
+      let chidstart = chais[i*16].id;  
       modulegenform.submodules [nmbsubmodule] = {
         type:'3', 
         chidstart :  chidstart, 
         adrstart: chs.chais[chidstart].adr, 
-        chcnt: i+1<module.submaicnt ? 16 : (module.chais.length === 16) ? 16: (module.chais.length % 16)};
+        chcnt: i+1<module.submaicnt ? 16 : (chais.length === 16) ? 16: (chais.length % 16)};
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submaocnt; i++) {
-      if (!module.chaos[i*16]) continue; //якщо є пропущені номери
-      let chidstart = module.chaos[i*16].id;  
+      if (!chaos[i*16]) continue; //якщо є пропущені номери
+      let chidstart = chaos[i*16].id;  
       modulegenform.submodules [nmbsubmodule] = {
         type:'4', 
         chidstart :  chidstart, 
         adrstart: chs.chaos[chidstart].adr, 
-        chcnt: i+1<module.submaocnt ? 16 : (module.chaos.length === 16) ? 16: (module.chaos.length % 16)};
+        chcnt: i+1<module.submaocnt ? 16 : (chaos.length === 16) ? 16: (chaos.length % 16)};
       nmbsubmodule ++; 
     }
     //MODTYPE вказує в DB тип підмодулів в одному модулі, наприклад 1324; //1- DICH, 2- DOCH, 3- AICH, 4 – AOCH, 5 - COM

@@ -75,25 +75,21 @@ function create_all(cfgchs, cfgtags, cfgacts) {
 function create_chs(cfgchs) {
   logmsg("-------------------- Створюю змінні та сеції CHS");
   let jsprog = createiochsprogram(cfgchs, "SR", "MAST");
-  return
   let jsdataBlock = {};
-  addvars_to_dataBlock(cfgtags, jsdataBlock);
+  
+  const stat = cfgchs.chs.statistic;
   jsSTExchangeFile.STExchangeFile.dataBlock = jsdataBlock;
-  addvar_to_dataBlock("DIH", "DIH", jsdataBlock);
-  addvar_to_dataBlock("DOH", "DOH", jsdataBlock);
-  addvar_to_dataBlock("AIH", "AIH", jsdataBlock);
-  addvar_to_dataBlock("AOH", "AOH", jsdataBlock);
-  addvar_to_dataBlock("VARBUF", "VARBUF", jsdataBlock);
+  addvar_to_dataBlock("CHDI", `ARRAY[0..${stat.dicnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHDI_HMI", `ARRAY[0..${stat.dicnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CHDO", `ARRAY[0..${stat.docnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHDO_HMI", `ARRAY[0..${stat.docnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CHAI", `ARRAY[0..${stat.aicnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHAI_HMI", `ARRAY[0..${stat.aicnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CHAO", `ARRAY[0..${stat.aocnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHAO_HMI", `ARRAY[0..${stat.aocnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CH_BUF", "CH_BUF", jsdataBlock);
 
-  let jsDDTSource = [];
-  jsDDTSource.push(createDDTSource("VARS", cfgtags, "VAR_CFG"));
-  jsDDTSource.push(createDDTSource("DIH", cfgtags, "DIVAR_HMI"));
-  jsDDTSource.push(createDDTSource("DOH", cfgtags, "DOVAR_HMI"));
-  jsDDTSource.push(createDDTSource("AIH", cfgtags, "AIVAR_HMI"));
-  jsDDTSource.push(createDDTSource("AOH", cfgtags, "AOVAR_HMI"));
-  jsSTExchangeFile.STExchangeFile.DDTSource = jsDDTSource;
-
-  //файли імпорту для змінних
+  //файли імпорту для каналів
   for (progname in jsprog) {
     jsSTExchangeFile.STExchangeFile.program = jsprog[progname]; //jsdivarsprog, jsdovarsprog, jsaivarsprog, jsaovarsprog
     let xmlcontent =
@@ -118,30 +114,15 @@ function create_chs(cfgchs) {
     fs.writeFileSync(filename, xmlcontent);
     logmsg(` Файл імпорту ${filename} створено.`);
     if (jsSTExchangeFile.STExchangeFile.DDTSource) {
-      logmsg(` Файл вміщує також усі змінні та типи VARS.`);
+      logmsg(` Файл вміщує також усі змінні CHS та Mapping.`);
     }
     delete jsSTExchangeFile.STExchangeFile.DDTSource;
     delete jsSTExchangeFile.STExchangeFile.dataBlock;
   }
 
-  //файли імпорту для ініціалізації
-  jsprog = createinitvarsprogram(cfgtags, "SR", "MAST");
-  jsSTExchangeFile.STExchangeFile.program = jsprog;
-  let xmlcontent =
-    xmlxddheader +
-    xmlparser.js2xml(jsSTExchangeFile, {
-      compact: true,
-      ignoreComment: true,
-      spaces: 4,
-      fullTagEmptyElement: true,
-    });
-  let filename = userdir + "\\" + opts.resultpath + "\\initvars.xst";
-  fs.writeFileSync(filename, xmlcontent);
-  logmsg(` Файл імпорту ${filename} створено.`);
-
   //файли імпорту для операторських екранів
   logmsg(` Створюю файли імпорту для операторських екранів`);
-  create_operscrvars(cfgtags);
+  create_operscmaps(cfgchs);
 }
 
 //Створення імпортних файлів для змінних
@@ -277,7 +258,7 @@ function create_actrtrs (cfgacts) {
 function dateTimeSEUN() {
   let now = new Date();
   let dateTime = `${now.getFullYear()}-${
-    now.getMonth().toString() + 1
+    (now.getMonth() + 1).toString()
   }-${now.getDate()}-${now.toLocaleTimeString()}`; //'dt#2022-01-16-20:47:30'
   return dateTime;
 }
@@ -574,28 +555,28 @@ function createiochsprogram(cfgchs, secttype = "SR", task = "MAST") {
       CHDI[i].ID := INT_TO_UINT(i);
       IF CHDI[i].CLSID = 0 THEN CHDI[i].CLSID := 16#0010;END_IF;
   END_IF;
-END_FOR;\n`;
+END_FOR;\n\n`;
   let bodyDOCHS = `FOR i := 1 TO PLC.DOCNT DO
   (*на першому циклі ініціалізуємо змінні ID + CLSID*)
   IF PLC.STA_SCN1 THEN
       CHDO[i].ID := INT_TO_UINT(i);
       IF CHDO[i].CLSID = 0 THEN CHDO[i].CLSID := 16#0020;END_IF;
   END_IF;
-END_FOR;\n`;
+END_FOR;\n\n`;
   let bodyAICHS = `FOR i := 1 TO PLC.AICNT DO
   (*на першому циклі ініціалізуємо змінні ID + CLSID*)
   IF PLC.STA_SCN1 THEN
       CHAI[i].ID := INT_TO_UINT(i);
       IF CHAI[i].CLSID = 0 THEN CHAI[i].CLSID := 16#0030;END_IF;
   END_IF;
-END_FOR;\n`;
+END_FOR;\n\n`;
   let bodyAOCHS = `FOR i := 1 TO PLC.AOCNT DO
   (*на першому циклі ініціалізуємо змінні ID + CLSID*)
   IF PLC.STA_SCN1 THEN
       CHAO[i].ID := INT_TO_UINT(i);
       IF CHAO[i].CLSID = 0 THEN CHAO[i].CLSID := 16#0040;END_IF;
   END_IF;
-END_FOR;\n`;
+END_FOR;\n\n`;
   let jsdichsprog = {identProgram: {_attributes: { name: "dichs", type: secttype, task: task }},STSource: {}};
   let jsdochsprog = {identProgram: {_attributes: { name: "dochs", type: secttype, task: task }},STSource: {}};
   let jsaichsprog = {identProgram: {_attributes: { name: "aichs", type: secttype, task: task }},STSource: {}};
@@ -607,15 +588,15 @@ END_FOR;\n`;
   }
   for (let chnmb in chs.chdos) {
     let ch = chs.chdos[chnmb];
-    bodyDOCHS +=`CHDOFN (RAW := ${ch.adr},  CHCFG := CHDO[${chnmb}],  CHHMI := CHDO_HMI[${chnmb}],  PLCCFG := PLC, CHBUF := CH_BUF);\n`;
+    bodyDOCHS +=`CHDOFN (CHCFG := CHDO[${chnmb}],  CHHMI := CHDO_HMI[${chnmb}],  PLCCFG := PLC, CHBUF := CH_BUF, RAW => ${ch.adr});\n`;
   }
   for (let chnmb in chs.chais) {
     let ch = chs.chais[chnmb];
-    bodyAICHS +=`CHAIFN (RAW := ${ch.adr},  CHCFG := CHAI[${chnmb}],  CHHMI := CHAI_HMI[${chnmb}],  PLCCFG := PLC, CHBUF := CH_BUF);\n`;
+    bodyAICHS +=`CHAIFN (RAWINT := ${ch.adr}, CHCFG := CHAI[${chnmb}], CHHMI := CHAI_HMI[${chnmb}], PLCCFG := PLC, CHBUF := CH_BUF);\n`
   }
   for (let chnmb in chs.chaos) {
     let ch = chs.chaos[chnmb];
-    bodyAOCHS +=`CHDIFN (RAW := ${ch.adr},  CHCFG := CHAO[${chnmb}],  CHHMI := CHAO_HMI[${chnmb}],  PLCCFG := PLC, CHBUF := CH_BUF);\n`;
+    bodyAOCHS +=`CHAOFN (CHCFG := CHAO[${chnmb}], CHHMI := CHAO_HMI[${chnmb}], PLCCFG := PLC, CHBUF := CH_BUF, RAWINT => ${ch.adr});\n`;
   }
   
   const progdescr =
@@ -640,10 +621,16 @@ END_FOR;\n`;
   let modules = cfgchs.iomapplc.plcform;
   for (let i=0; i<modulscnt; i++) {
     let module = modules[i];
-    bodyPLCMAPS += ``
+    bodyPLCMAPS += `MODULES[${i}].TYPE1 := 16#${module.MODTYPE}; (*${module.MODTYPESTR}*)\n`;
+    bodyPLCMAPS += `MODULES[${i}].CHCNTS := 16#${module.CHCNTS};(*${module.CHCNTSD}*)\n`;
+    bodyPLCMAPS += `MODULES[${i}].STRTNMB[0] := ${module.STRTNMB0};\n`;
+    bodyPLCMAPS += `MODULES[${i}].STRTNMB[1] := ${module.STRTNMB1};\n`;
+    bodyPLCMAPS += `MODULES[${i}].STRTNMB[2] := ${module.STRTNMB2};\n`;
+    bodyPLCMAPS += `MODULES[${i}].STRTNMB[3] := ${module.STRTNMB3};\n\n`;
   } 
+
   jsmapsprog.STSource = progdescr + bodyPLCMAPS;
-  return
+
   return {jsdichsprog, jsdochsprog, jsaichsprog, jsaochsprog, jsmapsprog};
 }
 //ствобрює секції обробки змінних
@@ -714,10 +701,6 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
   jsaovarsprog.STSource = progdescr + bodyAOVARS;
 
   return { jsdivarsprog, jsdovarsprog, jsaivarsprog, jsaovarsprog };
-  /*
-  	<identProgram name="INPUTS" type="SR" task="MAST"></identProgram>
-		<STSource>FOR i := 1 TO PLC.DICNT DO
-  */
 }
 //ствобрює секцію ініціалізації
 function createinitvarsprogram(cfgtags, secttype = "SR", task = "MAST") {
@@ -859,6 +842,19 @@ function create_operscracts(cfgacts) {
   }   
 }
 
+//створює операторські екрани для відображення каналів
+function create_operscmaps(cfgchs) {
+  let moduls = cfgchs.iomapplc.plcform; 
+  let replacers = [];
+  for (let i=0; i<moduls.length; i++){
+    module = moduls [i];
+    replacers.push({ main: `MODULES[${i.toString()}]`});
+  } 
+  const tmpltname = 'moduls.xcr'; 
+  const filename = 'moduls.xcr'; 
+  operatorscreen_dupreplace(tmpltname, "MODULES[0]", replacers, filename, 32,);   
+}
+
 function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscreenname, elmsperpage = 32) {
   //elmsperpage - поділ на сторінки, to do
   let fullfilename = userdir + "\\" + opts.source + "\\" + filename;
@@ -883,8 +879,12 @@ function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscre
     .replace(/<\/screen>/g, "!!!!!!!!!!</screen>")
     .split("!!!!!!!!!!");
   //пошук prefix
-
-  prefix = 'name="' + prefixin + ".";
+  if (prefixin === 'MODULES[0]') {
+    prefix = 'name="' + prefixin
+  } else {  
+    prefix = 'name="' + prefixin + '.';
+  }
+  
   let group,
     isgroup = false,
     i = 0;
@@ -926,9 +926,18 @@ function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscre
       }
       //console.log (xmlparser.xml2js(txtline, {compact: true}))
     }
-    pos = txtline.search(prefix);
+    
+    let prefix1 = prefix.replace('[','\\[').replace(']','\\]');//заміна слуюбових символів регулярних виразів
+    pos = txtline.search(prefix1);
     if (isgroup && pos >= 0) {
-      group.props.mainoldlink = txtline.split(prefix)[1].split(".")[0];
+      //console.log (txtline.split(prefix)[1]);
+      //process.exit();
+      if (prefixin === 'MODULES[0]'){
+        group.props.mainoldlink = 'MODULES[0]'
+      } else {
+        group.props.mainoldlink = txtline.split(prefix)[1].split('.')[0];
+      } 
+
       found = true;
     }
   }
@@ -942,23 +951,11 @@ function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscre
       let txtelm = "";
       newlink = replacer[j].main;
       //створення нової копії
-      txtelm = screenelm_replace(
-        group.props.content,
-        0,
-        deltay,
-        group.props.mainoldlink,
-        newlink
-      );
+      txtelm = screenelm_replace(group.props.content,0,deltay,group.props.mainoldlink,newlink);
       xmlar.splice(i, 0, txtelm); //вставляємо позначення групи
       i++;
       for (let k = 0; k < group.props.cnt; k++) {
-        txtelm = screenelm_replace(
-          group.txtelm[k],
-          0,
-          deltay * j,
-          group.props.mainoldlink,
-          newlink
-        );
+        txtelm = screenelm_replace(group.txtelm[k],0,deltay * j,group.props.mainoldlink,newlink);
         //кординати, зміст
         xmlar.splice(i, 0, txtelm); //вставляємо в i-ту позицію k-й елемент групи, видаляємо 0 елементів
         i++;
@@ -966,22 +963,10 @@ function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscre
     }
     //заміна властивостей існуючого елементу
     newlink = replacer[0].main;
-    txtelm = screenelm_replace(
-      group.props.content,
-      0,
-      0,
-      group.props.mainoldlink,
-      newlink
-    );
+    txtelm = screenelm_replace(group.props.content,0,0, group.props.mainoldlink, newlink);
     xmlar[group.props.start] = txtelm;
     for (let k = 0; k < group.props.cnt; k++) {
-      txtelm = screenelm_replace(
-        group.txtelm[k],
-        0,
-        0,
-        group.props.mainoldlink,
-        newlink
-      );
+      txtelm = screenelm_replace(group.txtelm[k], 0, 0, group.props.mainoldlink, newlink);
       xmlar[group.props.start + k + 1] = txtelm;
     }
     //console.log (group);
@@ -991,7 +976,7 @@ function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscre
     fs.writeFileSync(outfilename, xmlout);
     logmsg(`Файл імпорту операторських екранів ${outfilename} створено`);
   } else {
-    logmsg (`WRN: Не вдалося знайти в шаблоні операторських екранів ${filename} прив'язки з вказаним перфіксом "${prefixin}", перевірте файл шаблону`)
+    logmsg (`WRN: Не вдалося знайти в шаблоні операторських екранів ${filename} прив'язки з вказаним префіксом "${prefixin}", перевірте файл шаблону`)
   }
 
   //
@@ -1001,6 +986,7 @@ function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscre
 
 function screenelm_replace(elem, dtx = 0, dty = 0, oldlink, newlink) {
   elem = elem.replace(oldlink, newlink);
+  //console.log (oldlink + '  ' + newlink);
   let part1 = elem.split('description="(')[0] + 'description="(';
   let part2 = elem.split('description="(')[1].split("),")[0];
   let part3 = elem.split(part2)[1];
