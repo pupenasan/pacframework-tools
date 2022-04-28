@@ -63,12 +63,34 @@ const jsSTExchangeFile = {
   },
 };
 
+var jsSTExchangeFileAll; //загальний файл для обміну
+//загальний файл імпорту - ініціалізація
+jsSTExchangeFileAll = JSON.parse(JSON.stringify(jsSTExchangeFile));
+jsSTExchangeFileAll.STExchangeFile.dataBlock = {variables:[]};
+jsSTExchangeFileAll.STExchangeFile.program = [];
+jsSTExchangeFileAll.STExchangeFile.DDTSource = []; 
+jsSTExchangeFileAll.STExchangeFile.program.push (JSON.parse(JSON.stringify(createmainprogram ("section", "MAST"))));
+
 //test ();
 
 function create_all(cfgchs, cfgtags, cfgacts) {
+
   create_chs (cfgchs);
   create_vars(cfgtags);
   create_actrtrs (cfgacts);
+
+  //загальний файл імпорту: запис
+  let xmlcontent = xmlxddheader + xmlparser.js2xml(jsSTExchangeFileAll, {compact: true, ignoreComment: true, spaces: 4,
+  fullTagEmptyElement: true});
+  let filename = userdir + "\\" + opts.resultpath + "\\" + "mainPFW.xst";
+  if (fs.existsSync(path.dirname(filename)) === false) {
+    fs.mkdirSync(path.dirname(filename));
+  }
+  fs.writeFileSync(filename, xmlcontent);
+  logmsg(` Файл імпорту ${filename} створено.`);
+  if (jsSTExchangeFile.STExchangeFile.DDTSource) {
+    logmsg(` Файл вміщує також усі змінні та типи VARS.`);
+  }
 }
 
 //Створення імпортних файлів для змінних
@@ -88,18 +110,21 @@ function create_chs(cfgchs) {
   addvar_to_dataBlock("CHAO", `ARRAY[0..${stat.aocnt}] OF CH_CFG`, jsdataBlock);
   addvar_to_dataBlock("CHAO_HMI", `ARRAY[0..${stat.aocnt}] OF CH_HMI`, jsdataBlock); 
   addvar_to_dataBlock("CH_BUF", "CH_BUF", jsdataBlock);
+  
+  //загальний файл імпорту  
+  for (let variable of jsdataBlock.variables) {
+    jsSTExchangeFileAll.STExchangeFile.dataBlock.variables.push (JSON.parse(JSON.stringify(variable)));
+  }
+  for (let progname in jsprog) {
+    jsSTExchangeFileAll.STExchangeFile.program.push (JSON.parse(JSON.stringify(jsprog[progname]))); 
+  }
 
   //файли імпорту для каналів
   for (progname in jsprog) {
     jsSTExchangeFile.STExchangeFile.program = jsprog[progname]; //jsdivarsprog, jsdovarsprog, jsaivarsprog, jsaovarsprog
     let xmlcontent =
       xmlxddheader +
-      xmlparser.js2xml(jsSTExchangeFile, {
-        compact: true,
-        ignoreComment: true,
-        spaces: 4,
-        fullTagEmptyElement: true,
-      });
+      xmlparser.js2xml(jsSTExchangeFile, {compact: true, ignoreComment: true, spaces: 4, fullTagEmptyElement: true});
     let filename =
       userdir +
       "\\" +
@@ -147,6 +172,17 @@ function create_vars(cfgtags) {
   jsDDTSource.push(createDDTSource("AOH", cfgtags, "AOVAR_HMI"));
   jsSTExchangeFile.STExchangeFile.DDTSource = jsDDTSource;
 
+  //загальний файл імпорту  
+  for (let variable of jsdataBlock.variables) {
+    jsSTExchangeFileAll.STExchangeFile.dataBlock.variables.push (JSON.parse(JSON.stringify(variable)));
+  }
+  for (let DDTSource of jsDDTSource) {
+    jsSTExchangeFileAll.STExchangeFile.DDTSource.push (JSON.parse(JSON.stringify(DDTSource))); 
+  }  
+  for (let progname in jsprog) {
+    jsSTExchangeFileAll.STExchangeFile.program.push (JSON.parse(JSON.stringify(jsprog[progname]))); 
+  }
+
   //файли імпорту для змінних
   for (progname in jsprog) {
     jsSTExchangeFile.STExchangeFile.program = jsprog[progname]; //jsdivarsprog, jsdovarsprog, jsaivarsprog, jsaovarsprog
@@ -181,6 +217,7 @@ function create_vars(cfgtags) {
   //файли імпорту для ініціалізації
   jsprog = createinitvarsprogram(cfgtags, "SR", "MAST");
   jsSTExchangeFile.STExchangeFile.program = jsprog;
+  jsSTExchangeFileAll.STExchangeFile.program.push (JSON.parse(JSON.stringify(jsprog))); 
   let xmlcontent =
     xmlxddheader +
     xmlparser.js2xml(jsSTExchangeFile, {
@@ -217,6 +254,17 @@ function create_actrtrs (cfgacts) {
   jsDDTSource.push(createDDTSource("ACT", cfgacts, "ACT_CFG"));
   jsDDTSource.push(createDDTSource("ACTH", cfgacts, "ACT_HMI"));
   jsSTExchangeFile.STExchangeFile.DDTSource = jsDDTSource;
+
+  //загальний файл імпорту  
+  for (let variable of jsdataBlock.variables) {
+    jsSTExchangeFileAll.STExchangeFile.dataBlock.variables.push (JSON.parse(JSON.stringify(variable)));
+  }
+  for (let DDTSource of jsDDTSource) {
+    jsSTExchangeFileAll.STExchangeFile.DDTSource.push (JSON.parse(JSON.stringify(DDTSource))); 
+  }  
+  for (let progname in jsprog) {
+    jsSTExchangeFileAll.STExchangeFile.program.push (JSON.parse(JSON.stringify(jsprog[progname]))); 
+  }
 
   //файли імпорту для ВМ
   for (progname in jsprog) {
@@ -545,6 +593,40 @@ function addvar_to_dataBlock(varname, vartype, jsdataBlock) {
   });
 }
 
+//ствобрює секцію main
+function createmainprogram(secttype = "section", task = "MAST") {
+  let body = `PLCFN (PLC := PLC);
+  (*виклик при старті*)
+  IF PLC.STA_SCN1 THEN
+    plcmaps();
+    initvars();
+  END_IF;
+  
+  (*обробка входів*)
+  dichs();
+  aichs();
+  divars ();
+  aivars ();
+  
+  (*обробка виконавчих механізмів*)
+  resolution();
+  actrs();
+  
+  (*обробка виходів*)
+  dovars();
+  aovars();
+  dochs();
+  aochs();
+  
+  moduls();`;
+
+  const progdescr =
+    "(* Ця секція згенерована автоматично PACFramework Tools " +
+    new Date().toLocaleString() +
+    "*)\n";
+  let jsprog = {identProgram: {_attributes: { name: "mainPFW", type: secttype, task: task }}, STSource: progdescr + body};
+  return jsprog;
+}
 
 //ствобрює секції обробки каналів
 function createiochsprogram(cfgchs, secttype = "SR", task = "MAST") {
@@ -726,7 +808,7 @@ function createinitvarsprogram(cfgtags, secttype = "SR", task = "MAST") {
         ? 0
         : tag.props.CHID;
     let id = tag.props.ID.toString();
-    jsprog.STSource += `VARS.${tagname}.ID:=${id}; VARS.${tagname}.CHID:=${chid}; VARS.${tagname}.CHIDDF:=${chid};\n`;
+    bodyprog += `VARS.${tagname}.ID:=${id}; VARS.${tagname}.CHID:=${chid}; VARS.${tagname}.CHIDDF:=${chid};\n`;
     //VARS.VNabor_T1_OPN.ID:=10001;  VARS.VNabor_T1_OPN.CHID:=1;   VARS.VNabor_T1_OPN.CHIDDF:=1;
   }
   const progdescr =
@@ -901,15 +983,11 @@ function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscre
       group = {
         txtelm: [],
         props: {
-          start: j,
-          content: txtline,
-          mainoldlink: "",
-          y1: parseInt(cord[0]),
-          x1: parseInt(cord[1]),
-          y2: parseInt(cord[2]),
-          x2: parseInt(cord[3]),
+          start: j, content: txtline, mainoldlink: "",
+          y1: parseInt(cord[0]), x1: parseInt(cord[1]),
+          y2: parseInt(cord[2]), x2: parseInt(cord[3]),
           cnt: parseInt(ob.replace("(", "").split("),")[1]),
-        },
+        }
       };
     } else if (isgroup === true) {
       //ми поки в групі
