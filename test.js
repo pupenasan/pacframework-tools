@@ -1,43 +1,16 @@
-const fs = require ('fs');
-const xmlparser = require('xml-js'); //https://www.npmjs.com/package/xml-js
+//https://sebhastian.com/nodejs-download-file/
+const https = require('https'); // or 'https' for https:// URLs
+const fs = require('fs');
 
-const xmlcontentwrite = {
-  _declaration: {
-    _attributes: { version: '1.0', encoding: 'UTF-8', standalone: 'yes' }
-  },
-  VariablesExchangeFile: {
-    dataBlock: { 
-      variables: { _attributes: { name: 'VARS', typeName: 'VARS' }}
-    },
-    DDTSource: []
-  }
-}
+const file = fs.createWriteStream("c:/temp/file.xlsx");
+const request = https.get(`https://docs.google.com/spreadsheets/uc?export=download&id=1GvttNOH74X2o9y0fh_qxQCHhfdFszx7m`, function(response) {
+   response.pipe(file);
 
-const jsDDTSource = [
-  {_attributes: {DDTName: 'VARS',version: '0.01',dateTime: 'dt#2022-01-16-20:47:30'}, 
-    attribute: {}, structure: {}},
-  {_attributes: {DDTName: 'DIH',version: '0.01',dateTime: 'dt#2022-01-16-20:47:30'}, 
-  attribute: {}, structure: {}},
-  {_attributes: {DDTName: 'DOH',version: '0.01',dateTime: 'dt#2022-01-16-20:47:30'}, 
-  attribute: {}, structure: {}},
-  {_attributes: {DDTName: 'AIH',version: '0.01',dateTime: 'dt#2022-01-16-20:47:30'}, 
-  attribute: {}, structure: {}},
-  {_attributes: {DDTName: 'AOH',version: '0.01',dateTime: 'dt#2022-01-16-20:47:30'}, 
-  attribute: {}, structure: {}}
-];
-const jsXDD = {
-  _declaration: {
-    _attributes: { version: '1.0', encoding: 'UTF-8', standalone: 'yes' }
-  },
-  DDTExchangeFile: {
-    //fileHeader: { _attributes: [Object] },
-    //contentHeader: { _attributes: [Object] },
-    DDTSource: jsDDTSource
-  }
-} 
+   // after download completed close filestream
+   file.on("finish", () => {
+       file.close();
+       console.log("Download Completed");
+   });
+});
+/*https://docs.google.com/spreadsheets/d/1GvttNOH74X2o9y0fh_qxQCHhfdFszx7m/edit?usp=sharing&ouid=111751208742846482260&rtpof=true&sd=true*/
 
-let xmlcontent = fs.readFileSync('C:/tmp/1.xsy', 'utf8');
-let jsoncontent = xmlparser.xml2js (xmlcontent, {compact: true}); 
-console.log (jsoncontent.VariablesExchangeFile);
-//console.log (jsoncontent.VariablesExchangeFile.dataBlock.variables[1].instanceElementDesc);
-console.log (jsoncontent.VariablesExchangeFile.dataBlock.variables.instanceElementDesc[0].instanceElementDesc[1]);

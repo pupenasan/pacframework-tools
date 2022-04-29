@@ -1,10 +1,10 @@
 # PACFramework tools
 
-Програмні утиліти для автоматизації процесів розробки [PACFramework](https://github.com/pupenasan/PACFramework) та [PACFramework IoT Gateway](https://github.com/pupenasan/PACFrameworkIoTGateway). 
+Програмні утиліти для автоматизації процесів розробки [PACFramework](https://github.com/pupenasan/PACFramework) та [PACFramework IoT Gateway](https://github.com/pupenasan/PACFrameworkIoTGateway). Утиліти призначені виключно сумісно з ресурсами розробленими відповідно до правил каркасу PACFramework. 
 
 ## Інсталювання
 
-Передбачається що утиліти вкористовуватимуться на ОС Windows 10. Для використання утиліт необхідно:
+Передбачається що утиліти використовуватимуться на ОС Windows 10. Для використання утиліт необхідно:
 
 - завантажити останню версію Node.JS з сайту <https://nodejs.org/uk/> (LTS версію).
 
@@ -71,3 +71,26 @@ pause
 ```
 
  Для налаштування параметрів роботи утиліт використовується `config.ini`
+
+## Перелік утиліт для користувача
+
+Дані утиліти вказуються в якості аргументу при виклику. Наприклад утиліта `tiaparseall` викликається так:
+
+```bash
+node C:\pacfwtools\node_modules\pacframework-tools\index tiaparseall
+```
+
+Нижче наведений перелік утиліт, які може запускати користувач.  
+
+- [getcfgfromxls](masredataxls.md) - отримання майстерданих (проектних даних) з формату Excel в JSON 
+- seuncreateall -  створення усіх файлів для імпорту в Uity PRO/Cotrol Expert з майстерданих формату Excel 
+- seuncreatechs - створення файлів для імпорту каналів та карти I/O в Uity PRO/Cotrol Expert з майстерданих формату Excel 
+- seuncreatevars - створення файлів для імпорту технологічних змінних в Uity PRO/Cotrol Expert з майстерданих формату Excel 
+- seuncreateacts - створення файлів для імпорту ВМ в Uity PRO/Cotrol Expert з майстерданих формату Excel 
+- tiacreateall - створення усіх файлів для імпорту в TIA portal з майстерданих формату Excel 
+- tiaparseall - отримання майстерданих (проектних даних) з TIA portal та перетворення їх в JSON з оновленням в CouchDB
+- wincccreatealm - створення списку тривог в форматі CSV для WinCC Prof
+- updateui2 - створення наповнення графічного інтерфейсу для PACFramework IoT Gateway 
+
+## Перелік утиліт для програміста
+
