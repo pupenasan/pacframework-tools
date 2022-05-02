@@ -27,6 +27,7 @@ if (fs.existsSync(userdir + "/config.ini") === false) {
 const config = ini.parse(fs.readFileSync(userdir + "/config.ini", "utf-8"));
 
 const tiaparsetools = require("./tiaparsetools"); //модуль для конвертування змісту проекту TIA в Master Data
+const seunparsetools = require("./seunparsetools"); //модуль для конвертування змісту проекту UnityPRO в Master Data
 const exceltools = require("./exceltools"); //
 const masterdatatools = require("./masterdatatools");
 const reptools = require("./reptools");
@@ -60,7 +61,9 @@ switch (process.argv[2]) {
   case "seuncreateacts":
       seuncreate('acts');
       break;
-
+  case "seunparseall":
+    seunparseall();
+    break;
   case "tiacreateall":
     tiacreateall();
     break;
@@ -87,6 +90,12 @@ switch (process.argv[2]) {
 async function tiaparseall() {
   let plcmasterdata = tiaparsetools.tiaparseall();
   await couchtools.doc_toCouchdb(plcmasterdata, twinname, "plcmasterdata");
+}
+
+//паристь усі файли з tia
+async function seunparseall() {
+  let plcmasterdata = seunparsetools.xefparseall();
+  //await couchtools.doc_toCouchdb(plcmasterdata, twinname, "plcmasterdata");
 }
 
 //створює файли Unity_PRO по конфігураційним налаштуванням

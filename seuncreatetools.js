@@ -1063,7 +1063,9 @@ function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscre
 }
 
 function screenelm_replace(elem, dtx = 0, dty = 0, oldlink, newlink) {
-  elem = elem.replace(oldlink, newlink);
+  let re = new RegExp(oldlink, 'g');
+  //elem = elem.replace(oldlink, newlink);
+  elem = elem.replace(re, newlink);
   //console.log (oldlink + '  ' + newlink);
   let part1 = elem.split('description="(')[0] + 'description="(';
   let part2 = elem.split('description="(')[1].split("),")[0];
