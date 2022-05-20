@@ -3,13 +3,13 @@
 const path = require("path");
 const fs = require("fs");
 const xmlparser = require("xml-js"); //https://www.npmjs.com/package/xml-js
-const masterdatatools = require("./masterdatatools");
+const masterdatatools = require("./masterdatatools.js");
 const ini = require("ini"); //https://github.com/npm/ini#readme
 const config = ini.parse(fs.readFileSync(global.inipath, "utf-8"));
 
 const opts = {
   logpath: "log",
-  logfile: "tiaparsetools.log",
+  logfile: "seunparsetools.log",
   clsiddefault: {
     var: 0x10f0,
     DI: 0x1010,
@@ -29,9 +29,6 @@ const opts = {
   },
 };
 
-masterdatatools.opts.logfile = "tiaparsetools.log";
-masterdatatools.opts.source = config.tiaparsetools.pathsource;
-masterdatatools.opts.logpath = config.tiaparsetools.pathlog;
 
 //скорочені назви функцій
 const logmsg = masterdatatools.logmsg;
@@ -39,9 +36,13 @@ const writetolog = masterdatatools.writetolog;
 const syncobs = masterdatatools.syncobs;
 
 function xefparseall () {
-  const tiasoucefiles = path.normalize(config.seunparsetools.pathsource + "/");
-  const tiaresultfiles = path.normalize(config.seunparsetools.pathresult + "/");
-  const xefsourcefilename = path.normalize(tiasoucefiles + config.seunparsetools.xeffile + ".xef");
+  masterdatatools.opts.logfile = "seunparsetools.log";
+  masterdatatools.opts.source = config.seunparsetools.pathsource;
+  masterdatatools.opts.logpath = config.seunparsetools.pathlog;
+
+  const seunsoucefiles = path.normalize(config.seunparsetools.pathsource + "/");
+  const seunresultfiles = path.normalize(config.seunparsetools.pathresult + "/");
+  const xefsourcefilename = path.normalize(seunsoucefiles + config.seunparsetools.xeffile + ".xef");
   logmsg("-------------------- Отримання мастерданих з XEF про PLCs");
   try {
     xmlcontent = fs.readFileSync(xefsourcefilename, "utf8");
@@ -65,13 +66,13 @@ function xefparseall () {
     let pfwtype = alltypes [DDTSource._attributes.DDTName] = {};
     DDTtotype (DDTSource, pfwtype)
   }
-  logmsg("Усі типи отримані");
+  logmsg("Усі типи з файлу отримані");
   let plcblocks = {};
   for (let variable of  jscontent.dataBlock.variables) {
     let varblockname = variable._attributes.name;
     plcblocks[varblockname] = variable;
   }
-  logmsg("Усі змінні отримані");
+  logmsg("Усі змінні з фвйлу отримані, перетворюю в базу даних...");
   /*
   //назви типів 
   let typeblocknames = {
@@ -83,7 +84,7 @@ function xefparseall () {
   };*/  
   
   
-  logmsg("----- Формування тегів");
+  logmsg("------------------ Формування тегів");
   let plctags = {
     types:{}, tags:{}, ids: {}, twinsrepo: {}, memmap: {}, varbuf: {}
   };
@@ -144,6 +145,7 @@ function xefparseall () {
   for (let varblocknm of varblocknms) {//перебираємо усі VAR
     let typename = plcblocks[varblocknm]._attributes.typeName;
     let typeblock = alltypes[typename];
+    logmsg(`Блок ${typename} в PLC:`,0);
     //теги всередині vars
     for (let vartag of plcblocks[varblocknm].instanceElementDesc) {
       let tagname = vartag._attributes.name;
@@ -171,13 +173,13 @@ function xefparseall () {
       //заповнюємо поля з типу
       for (let fieldname in alltypes[typeblock[tagname].type]){
         plccfg[fieldname] = {type : alltypes[typeblock[tagname].type][fieldname].type}
-      } 
+      }
+      logmsg(`Змінна ${tagname} добавлено в БД:`,0) 
     }
   }
-  
   let hmitypes =  ["DIH","DOH","AIH","AOH"];
   for (hmitype of hmitypes) {
-    //DIH приведення до типу масив 
+    //DIH приведення до типу масив
     varblocknms = (typeof varblocknames[hmitype] === 'object') ? varblocknames[hmitype] : [varblocknames[hmitype]];
     for (let varblocknm of varblocknms) {//перебираємо усі VAR_HMI
       let typename = plcblocks[varblocknm]._attributes.typeName;
@@ -185,49 +187,151 @@ function xefparseall () {
       let topoadr = plcblocks[varblocknm]._attributes.topologicalAddress;
       let mwbias = parseInt(topoadr.toUpperCase().replace('%MW',''));
       
+      logmsg(`Блок ${varblocknm} в PLC:`,0);
       adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0}
       //теги всередині vars
       for (let vartagname in typeblock) {
         if (!mastertags [vartagname]) {
-          console.log (`Не знайдено тег ${vartagname} в базі конфігураційних тегів! Наступне перетворення не можливе!`)
+          logmsg (`Не знайдено тег ${vartagname} в базі конфігураційних тегів! Наступне перетворення не можливе!`)
           return ;
         }
         let taghmi = mastertags[vartagname].plchmi = {type: typeblock[vartagname].type};
         let typehmi = alltypes[typeblock[vartagname].type];
+        taghmi.adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
         for (let fieldname in typehmi) {
           taghmi[fieldname] = {type: typehmi[fieldname].type};
           taghmi[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
           addaddr (typehmi[fieldname].type, adrob);
         }
+        logmsg(`Змінна ${vartagname} добавлено в БД:`,0)   
         //console.log (mastertags [vartagname])
-      } 
+      }   
     }
   } 
   plctags.tags = mastertags;
   //adrob:{word, bitinword, byte, bit}
-
-  /*
-  switch (variable._attributes.typeName) {
-    case 'VARS':
-      break;
-    case 'DIH':        
-      break;
-    case 'DOH':        
-      break;
-    case 'AIH':        
-      break;
-    case 'AOH':        
-      break;
-  
-    default:
-      break;
-  }
-  */
   //name	"AOH" typeName	"AOH" topologicalAddress	"%MW550"
+  logmsg(`Змінні добавлено в БД`) 
+  //------------------ формування VARBUF
+  let varbuf = plctags.varbuf = JSON.parse(JSON.stringify(plctags.types[varblocknames.VARBUF]));
+  varbuf.type = varblocknames.VARBUF; 
+  varbuf.adr = plcblocks[varblocknames.VARBUF]._attributes.topologicalAddress;
+  logmsg(`${varblocknames.VARBUF} добавлено в БД`) 
   
+  logmsg("------------------ Формування бази даних каналів");
+  let plc_chs = {
+    types:{}, chs:{}, memmap:{}, chbuf:{}, modules:[], submodulebuf: {}, iomapplc:{}
+  };
+  //назви типів та змінних
+  typeblocknames = {CH_CFG:"CH_CFG", CH_HMI:"CH_HMI", CH_BUF:"CH_BUF", MODULE:"MODULE", SUBMODULE:"SUBMODULE"};
+  varblocknames = {MODULES:"MODULES", SUBMODULE: "SUBMODULE", CH_BUF:"CH_BUF"}; 
+  found = true;
+  for (let typeblockname in typeblocknames) {
+    //для кожного типу каркасу можуть бути по кілька блоків
+    let types = [];
+    if (typeof typeblocknames[typeblockname] === 'object') {
+      types = typeblocknames[typeblockname]
+    } else {
+      types.push (typeblocknames[typeblockname]);     
+    }
+    for (typename of types) {
+      if (!alltypes[typename]) {
+        logmsg(`ERR: Не знайдено тип ${typename}`);
+        found = false;
+      }
+      plc_chs.types[typename] = alltypes[typename]
+    }   
+  }
+  //модулі
+  let modulenmb=0; 
+  let startadr = plcblocks[varblocknames.MODULES]._attributes.topologicalAddress;
+  let mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0}
+  for (let modulexml of plcblocks[varblocknames.MODULES].instanceElementDesc) {
+    let module = {};
+    module.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
+    module.type = typeblocknames.MODULE;
+    module.modid = modulexml.comment._text;
+    for (let fieldname in plc_chs.types.MODULE) {
+      module[fieldname] = {type: plc_chs.types.MODULE[fieldname].type};
+      module[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+      addaddr (module[fieldname].type, adrob);
+    }
+    logmsg(`Добавлено інформацію по MODULE${modulenmb}`)
+    modulenmb++; 
+    plc_chs.modules.push (module);
+  }
 
+  //CH_BUF
+  startadr = plcblocks[varblocknames.CH_BUF]._attributes.topologicalAddress;
+  mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
+  let chbuf = plc_chs.chbuf;
+  chbuf.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
+  chbuf.type = typeblocknames.CH_BUF;
+  for (let fieldname in plc_chs.types.CH_BUF) {
+    chbuf[fieldname] = {type: plc_chs.types.CH_BUF[fieldname].type};
+    chbuf[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+    addaddr (chbuf[fieldname].type, adrob);
+  }
+  logmsg(`Добавлено інформацію по CH_BUF`);
 
-  fs.writeFileSync (tiaresultfiles + 'plc_tags.json',JSON.stringify(plctags),"utf8");
+  //SUbMODULE_BUF
+  startadr = plcblocks[varblocknames.SUBMODULE]._attributes.topologicalAddress;
+  mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
+  let submodulebuf = plc_chs.submodulebuf;
+  submodulebuf.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
+  submodulebuf.type = typeblocknames.SUBMODULE;
+  for (let fieldname in plc_chs.types.SUBMODULE) {
+    submodulebuf[fieldname] = {type: plc_chs.types.SUBMODULE[fieldname].type};
+    submodulebuf[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+    addaddr (submodulebuf[fieldname].type, adrob);
+  }
+  logmsg(`Добавлено інформацію по SUBMODULE`);
+  //process.exit();
+  
+  logmsg("------------------ Формування бази даних ПЛК");
+  let plc_plcs = {
+    types:{}, memap:{}, plc:{}
+  };
+  typeblocknames = {PLC_CFG:"PLC_CFG"};
+  varblocknames = {PLC:"PLC"}; 
+  found = true;
+  for (let typeblockname in typeblocknames) {
+    //для кожного типу каркасу можуть бути по кілька блоків
+    let types = [];
+    if (typeof typeblocknames[typeblockname] === 'object') {
+      types = typeblocknames[typeblockname]
+    } else {
+      types.push (typeblocknames[typeblockname]);     
+    }
+    for (typename of types) {
+      if (!alltypes[typename]) {
+        logmsg(`ERR: Не знайдено тип ${typename}`);
+        found = false;
+      }
+      plc_plcs.types[typename] = alltypes[typename]
+    }   
+  }
+  startadr = plcblocks[varblocknames.PLC]._attributes.topologicalAddress;
+  mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
+  let plc = plc_plcs.plc;
+  plc.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
+  plc.type = typeblocknames.PLC;
+  for (let fieldname in plc_plcs.types.PLC_CFG) {
+    plc[fieldname] = {type: plc_plcs.types.PLC_CFG[fieldname].type};
+    plc[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+    plc[fieldname].descr = plc_plcs.types.PLC_CFG[fieldname].descr;
+    addaddr (plc[fieldname].type, adrob);
+  }
+  logmsg(`Добавлено інформацію по PLC`);
+
+  fs.writeFileSync (seunresultfiles + 'plc_tags.json',JSON.stringify(plctags),"utf8");
+  fs.writeFileSync (seunresultfiles + 'plc_chs.json',JSON.stringify(plc_chs),"utf8");
+  fs.writeFileSync (seunresultfiles + 'plc_plcs.json',JSON.stringify(plc_plcs),"utf8");
+  writetolog(1);
 }
 
 //
@@ -294,6 +398,17 @@ function addaddr(type, adrob) {
       break;
     default:
       //return -1;
+      type = type.toLowerCase();
+      if (type.search('array')>-1) {
+        let ar = type.split(' of ');
+        let scalartype = ar[1];
+        let startend = ar[0].split('[')[1].split(']')[0];
+        let start = startend.split('..')[0];
+        let finish = startend.split('..')[1];
+        for (i=start; i<=finish; i++) {
+          addaddr(scalartype, adrob)
+        }
+      }
       break;
   }
   adrob.bit += addbit;

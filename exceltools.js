@@ -13,12 +13,11 @@ const opts = {
 
 //отримання базової інформації про теги закладка tags
 function getcfgtags_fromxls (filexls) {
-  const cfgtags = {tags:{}, ids:{}, invalids:{}};
+  const cfgtags = {tags:{}, ids:{}, invalids:{}, statistic:{}};
   const wb = xlsx.readFile(filexls);
   const wss = wb.Sheets;
   const wstags = wss['tags'];
 
-  let dicnt = 0, docnt=0, aicnt=0, aocnt=0; 
   const tagrows = xlsx.utils.sheet_to_json(wstags);
   logmsg ('Розбиваю записи по тегам', 1); 
   let i=0;
@@ -58,7 +57,10 @@ function getcfgtags_fromxls (filexls) {
     tag.description = tag.props.DESCRIPTION;
     cfgtags.tags[tagname] = tag;
     if (tag.state === 'valid') {
-      cfgtags.ids[id] = tagname
+      cfgtags.ids[id] = tagname;
+      //формування статистики
+      if (!cfgtags.statistic[tag.props.TYPE]) cfgtags.statistic[tag.props.TYPE] = {count:0};
+      cfgtags.statistic[tag.props.TYPE].count++;
     } else {
       cfgtags.invalids[id] = tagname   
     }

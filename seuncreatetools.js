@@ -93,7 +93,7 @@ function create_all(cfgchs, cfgtags, cfgacts) {
   }
 }
 
-//Створення імпортних файлів для змінних
+//Створення імпортних файлів для каналів
 function create_chs(cfgchs) {
   logmsg("-------------------- Створюю змінні та сеції CHS");
   let jsprog = createiochsprogram(cfgchs, "SR", "MAST");
@@ -110,7 +110,17 @@ function create_chs(cfgchs) {
   addvar_to_dataBlock("CHAO", `ARRAY[0..${stat.aocnt}] OF CH_CFG`, jsdataBlock);
   addvar_to_dataBlock("CHAO_HMI", `ARRAY[0..${stat.aocnt}] OF CH_HMI`, jsdataBlock); 
   addvar_to_dataBlock("CH_BUF", "CH_BUF", jsdataBlock);
-  
+
+  //добавлення MODULES
+  let modules = [];
+  for (let i=0; i<stat.modulscnt; i++) {
+    modules.push({ _attributes: { name: `[${i}]` }, comment: { _text: `${cfgchs.iomapplc.plcform[i].MODID}` } })
+  }
+  jsdataBlock.variables.push({
+    _attributes: { name: `MODULES`, typeName: `ARRAY[0..${stat.modulscnt-1}] OF MODULE` },
+    instanceElementDesc: modules
+  });
+
   //загальний файл імпорту  
   for (let variable of jsdataBlock.variables) {
     jsSTExchangeFileAll.STExchangeFile.dataBlock.variables.push (JSON.parse(JSON.stringify(variable)));
@@ -158,10 +168,10 @@ function create_vars(cfgtags) {
   let jsdataBlock = {};
   addvars_to_dataBlock(cfgtags, jsdataBlock);
   jsSTExchangeFile.STExchangeFile.dataBlock = jsdataBlock;
-  addvar_to_dataBlock("DIH", "DIH", jsdataBlock);
-  addvar_to_dataBlock("DOH", "DOH", jsdataBlock);
-  addvar_to_dataBlock("AIH", "AIH", jsdataBlock);
-  addvar_to_dataBlock("AOH", "AOH", jsdataBlock);
+  if (cfgtags.statistic.DI && cfgtags.statistic.DI.cnt) addvar_to_dataBlock("DIH", "DIH", jsdataBlock);
+  if (cfgtags.statistic.DO && cfgtags.statistic.DI.cnt) addvar_to_dataBlock("DOH", "DOH", jsdataBlock);
+  if (cfgtags.statistic.AI && cfgtags.statistic.DI.cnt) addvar_to_dataBlock("AIH", "AIH", jsdataBlock);
+  if (cfgtags.statistic.AO && cfgtags.statistic.DI.cnt) addvar_to_dataBlock("AOH", "AOH", jsdataBlock);
   addvar_to_dataBlock("VARBUF", "VARBUF", jsdataBlock);
 
   let jsDDTSource = [];
@@ -170,6 +180,7 @@ function create_vars(cfgtags) {
   jsDDTSource.push(createDDTSource("DOH", cfgtags, "DOVAR_HMI"));
   jsDDTSource.push(createDDTSource("AIH", cfgtags, "AIVAR_HMI"));
   jsDDTSource.push(createDDTSource("AOH", cfgtags, "AOVAR_HMI"));
+
   jsSTExchangeFile.STExchangeFile.DDTSource = jsDDTSource;
 
   //загальний файл імпорту  
@@ -431,7 +442,11 @@ function createDDTSource(DDTName, DDTcontent, PACFWtype = "VAR_CFG", version = "
       }
     }
   }
-  return jsDDTsource;
+  if (jsDDTsource.structure.variables.length > 0) {
+    return jsDDTsource
+  } else {
+    return null
+  }
 }
 
 //добавляє змінні в dataBlock з означенням значень елементів за замовченням
@@ -898,10 +913,10 @@ function create_operscrvars(cfgtags) {
       replacers[tag.props.TYPE].push({ main: tagname });
     }
   }
-  operatorscreen_dupreplace("divar.xcr", "DIH", replacers.DI, "DIVARS");
-  operatorscreen_dupreplace("dovar.xcr", "DOH", replacers.DO, "DOVARS");
-  operatorscreen_dupreplace("aivar.xcr", "AIH", replacers.AI, "AIVARS");
-  operatorscreen_dupreplace("aovar.xcr", "AOH", replacers.AO, "AOVARS");
+  if (replacers.DI.length>0) operatorscreen_dupreplace("divar.xcr", "DIH", replacers.DI, "DIVARS");
+  if (replacers.DO.length>0) operatorscreen_dupreplace("dovar.xcr", "DOH", replacers.DO, "DOVARS");
+  if (replacers.AI.length>0) operatorscreen_dupreplace("aivar.xcr", "AIH", replacers.AI, "AIVARS");
+  if (replacers.AO.length>0) operatorscreen_dupreplace("aovar.xcr", "AOH", replacers.AO, "AOVARS");
 }
 //створює операторські екрани для ВМ
 function create_operscracts(cfgacts) {

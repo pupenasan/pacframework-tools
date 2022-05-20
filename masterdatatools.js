@@ -602,7 +602,7 @@ function logmsg (msg, toconsole=1) {
 //виведення msglog в файл, при createnew = 1 - створюється новий файл 
 function writetolog (createnew = 0) {
   let now = new Date ();
-  let logfile = opts.logpath + '/' + opts.logfile;
+  let logfile = opts.logpath + '\\' + opts.logfile;
   msglog = '===============' + now + '\n' + msglog;
   if  (fs.existsSync(path.dirname(logfile)) === false) {
     fs.mkdirSync (path.dirname(logfile));
