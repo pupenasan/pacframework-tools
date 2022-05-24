@@ -39,9 +39,11 @@ let masterplcs;
 let initgood = init();
 
 if (init()) {
-  modulstoequipment();
+  //modulstoequipment();
   //tagstoequipment();
-  //create_varpages ();
+  
+  create_varpages ();
+  create_plcpage ();
   writetolog(1);
 }
 
@@ -73,6 +75,21 @@ function create_varpages(){
   let paras = ['ctgraphbldrtools.vbs', 'create_varpages', ctprojectname, pfwincludename, dis, dos, ais, aos, cntelemetspergenie];
   //'C:\\Windows\\SysWOW64\\cscript.exe'
   logmsg ("Створюю джини для технологічних змінних, зачекайте, це може зайняти кілька хвилин ...");
+  let vbs = child_process.spawnSync('cscript.exe' , paras, {stdio: ['pipe', 'pipe', process.stderr]});//{ stdio: [process.stdin, process.stdout, process.stderr] }
+  str = iconv.decode(Buffer.from(vbs.stdout), 'win1251').split('----------');
+  if (str.length>0) console.log (str[1]);
+}
+
+function create_plcpage(){
+  let moduls='';
+  if (masterchs) {
+    for (let module of masterchs.modules) {
+      moduls+= module.modid + ','
+    }
+    moduls = moduls.slice(0, -1)
+  }
+  let paras = ['ctgraphbldrtools.vbs', 'create_plcpage', ctprojectname, pfwincludename, moduls];
+  logmsg ("Створюю джини для модулів, зачекайте, це може зайняти кілька хвилин ...");
   let vbs = child_process.spawnSync('cscript.exe' , paras, {stdio: ['pipe', 'pipe', process.stderr]});//{ stdio: [process.stdin, process.stdout, process.stderr] }
   str = iconv.decode(Buffer.from(vbs.stdout), 'win1251').split('----------');
   if (str.length>0) console.log (str[1]);
@@ -308,7 +325,7 @@ function modulstoequipment () {
   logmsg (`----- Отримую інформацію про канали ----------------`)
   let newequipments = {};
   let newequiprtpara = {};
-  let typevarscheck = {MODULE: equiptypes.MODULE, SUBMODULE: equiptypes.SUBMODULE, CH_BUF: equiptypes.CH_BUF};
+  let typevarscheck = {MODULE: equiptypes.MODULE, SUBMODULE: equiptypes.SUBMODULE, CH_BUF: equiptypes.CH_BUF, PLC: equiptypes.PLC};
   //перевірка на валідність 
   //console.log (typevarscheck);process.exit();
   if (typeof (typevarscheck.MODULE) === 'object') {
@@ -326,37 +343,33 @@ function modulstoequipment () {
   } else {
     logmsg (`WRN: Не знайдено необхідні типи для CH_BUF зміна Equipment дя нього не буде відбуватися!`);
   }
-
-  if (masterchs) {
-    for (let module of masterchs.modules) {
-      let equipment; 
-        equipment = newequipments[tgname] = {};
-        equipment.type = 'AIVAR_HMI';
-        equipment.comment = tag.descr;
-        equipment.alias = tgname;
-        equipment.content = 'FP_AI'
-        //параметри
-        paramsdef = JSON.parse(JSON.stringify(equiptypes.AIVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  tag.id;
-        equipment.param = equipparamtostring (paramsdef);
-        let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
-        equipment.custom1 = startadr;
-        let valuepara = tgname + '_PLCLimits'// Equipment runtime parameters
-        newequiprtpara[valuepara] = {name:'PLCLimits', value: valuepara};
-        //console.log (equipment);
-    } 
-    if (typevarscheck.VARBUF){
-      let varbuf = mastertags.varbuf;
-      let equipment = newequipments.VARBUF = {};
-      equipment.type = 'VARBUF';
-      equipment.comment = 'Тег для буферу технологічної змінної';
-      equipment.alias = 'VARBUF';
-      let startadr = varbuf.adr.replace('%MW','').split('.')[0];
-      equipment.custom1 = startadr;      
-    }
+  if (typeof (typevarscheck.PLC) === 'object') {
+    logmsg ('PLC - ok!')
+  } else {
+    logmsg (`WRN: Не знайдено необхідні типи для PLC зміна Equipment дя нього не буде відбуватися!`);
   }
 
-  logmsg (`----- Модифікую таблицю Equipment технологічними змінними в проекті ${ctprojectpath} ----------------`)
+  if (masterchs) {
+    let i=0;
+    for (let module of masterchs.modules) {
+      let modulename = 'MODULE' + i; 
+      let equipment; 
+      equipment = newequipments[modulename] = {};
+      equipment.type = 'MODULE';
+      equipment.comment = module.modid;
+      equipment.alias = module.modid;
+      //equipment.content = 'FP_AI'
+      let startadr = module.adr.replace('%MW','').split('.')[0];
+      equipment.custom1 = startadr;
+      //console.log (equipment);
+      i++
+    }
+    newequipments.CH_BUF = {type: 'CH_BUF', custom1: masterchs.chbuf.adr.replace('%MW','').split('.')[0]};
+    newequipments.SUBMODULE = {type: 'SUBMODULE', custom1: masterchs.submodulebuf.adr.replace('%MW','').split('.')[0]};
+    newequipments.PLC = {type: 'PLC', custom1: masterplcs.plc.adr.replace('%MW','').split('.')[0]};
+  }
+
+  logmsg (`----- Модифікую таблицю Equipment модулями в проекті ${ctprojectpath} ----------------`)
   modifyequipments (newequipments, newequiprtpara);
 } 
 

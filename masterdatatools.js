@@ -146,7 +146,7 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
       if (!cfgchs.devs[ch.dev]) cfgchs.devs[ch.dev] = {};
       let dev =  cfgchs.devs[ch.dev];
       if (!dev[chinmod.modid]) {
-        dev[chinmod.modid] = {};//{submdicnt:0, submdocnt:0, submaicnt:0, submaocnt:0, submodules:{}};
+        dev[chinmod.modid] = {dev:ch.dev, modnmb:ch.modnmb, modalias:ch.modalias};//{submdicnt:0, submdocnt:0, submaicnt:0, submaocnt:0, submodules:{}};
         cfgchs.chs.statistic.modulscnt++;
       };
       if (!cfgchs.moduls[chinmod.modid]) cfgchs.moduls[chinmod.modid]={chdis:[],chdos:[], chais:[], chaos:[]};
@@ -274,7 +274,34 @@ function iomaptoplcform (cfgchs) {
   const chs = cfgchs.chs;
   const moduls = cfgchs.moduls;
   const iomap = cfgchs.iomapplc = {genform:{}, plcform : []};
-  for (modulename in moduls){
+  //-------- формування мапи модулів у правильній послідовності
+  let sortmodulenames = []; 
+  //сортування по девайсам
+  let devnames = []; 
+  for (let devname in cfgchs.devs) {
+    devnames.push (devname);
+  }
+  devnames.sort();
+
+  for (let devname of devnames) {
+    let dev = cfgchs.devs[devname];
+    //упорядковуємо по номеру модуля
+    let modules = [];
+    for (let modulename in dev) {
+      let module = dev [modulename];
+      if (modules[module.modnmb]) {
+        logmsg(`ERR: Модуль з назвою ${modulename} номером ${module.modnmb} в острові ${devname} вже існує з назвою ${modules[module.modnmb].modid}. Перевірте нумерацію модулів`)
+      } else {
+        modules[module.modnmb] = module;
+        modules[module.modnmb].modid = modulename;
+      } 
+    }
+    for (let module of modules) {
+      if (module) sortmodulenames.push (module.modid);
+    }
+  }
+
+  for (modulename of sortmodulenames){
     let module = moduls[modulename];
     let modulegenform = iomap.genform [modulename] = {};
     //канали можуть поичинатися не з 0, тому приводимо їх до канонічної форми, щоб рахувалися з 0 та не містили пустот
