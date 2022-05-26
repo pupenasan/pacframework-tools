@@ -19,6 +19,9 @@ function getcfgtags_fromxls (filexls) {
   const wstags = wss['tags'];
 
   const tagrows = xlsx.utils.sheet_to_json(wstags);
+  tagrows.sort((a, b) => {
+    return a.ID - b.ID;
+  }); 
   logmsg ('Розбиваю записи по тегам', 1); 
   let i=0;
   for (let row of tagrows) {
@@ -28,7 +31,7 @@ function getcfgtags_fromxls (filexls) {
     let tag = {state: 'valid'};
     if (!tagname) {
       tagname = '$TEMPORARY' + i; 
-      logmsg (`ERR: Не знайдено ім'я тегу у записі номер ${i}, наано тимчасове ім'я тегу ${tagname}, тег невалідний`, 1);
+      logmsg (`ERR: Не знайдено ім'я тегу у записі номер ${i}, надано тимчасове ім'я тегу ${tagname}, тег невалідний`, 1);
       tag.state = 'inv_noname' 
     }
     if (cfgtags.tags[tagname]) {

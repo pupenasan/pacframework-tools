@@ -32,6 +32,10 @@ function repactuators (cfgacts, onlymd = true) {
     let typedescr =  cfgacts.types[acttypename]? cfgacts.types[acttypename].typedescr: '';
     mdtext += '## Тип ' + acttypename + ' (' + typedescr + ')' + '\n\n' 
     mdtext += '### Опис типу ' + '\n\n' 
+    if (!cfgacts.types[acttypename] || !cfgacts.types[acttypename].io) {
+      mdtext += 'Тип не валідний, перевірте журнал помилок ' + '\n\n';
+      continue  
+    }
     for (let lnkname in cfgacts.types[acttypename].io){ 
       let io = cfgacts.types[acttypename].io[lnkname]; 
       mdtext += '**' + lnkname + '** (' + io.type + ') - ' +  io.description +  '\n'

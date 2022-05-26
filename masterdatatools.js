@@ -50,8 +50,9 @@ function tagsdif (plctags, cfgtags) {
 
 //формує меппінг каналів і змінних з даних ПЛК
 function chsmap_fromplc (plchs, plctags){
-  let chsmap = {dimap:[], domap:[], aimap:[], aomap:[]}; 
+  let chsmap = {dimap:[], domap:[], aimap:[], aomap:[], ndimap:[], ndomap:[], naimap:[], naomap:[]}; 
   let chdis = plchs.chs.chdis, chdos = plchs.chs.chdos, chais = plchs.chs.chais, chaos = plchs.chs.chaos;
+  let chndis = plchs.chs.chndis, chndos = plchs.chs.chndos, chnais = plchs.chs.chnais, chanos = plchs.chs.chanos;  
   let dimap = [], domap = [], aimap = [], aomap = [] ;
   for (let tagname in plctags.tags){
     let tag = plctags.tags[tagname];
@@ -107,23 +108,23 @@ function chsmap_fromplc (plchs, plctags){
 
 //формує канали, меппінг каналів і змінних з даних CFG
 function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
-  let cfgchmap = {dimap:[], domap:[], aimap:[], aomap:[]}; 
+  let cfgchmap = {dimap:[], domap:[], aimap:[], aomap:[], ndimap:[], ndomap:[], naimap:[], naomap:[]}; 
   cfgchs.devs = {};
   cfgchs.moduls = {};
   cfgchs.chs = {
     types: chstype,
-    statistic: {dicnt:0, docnt:0, aicnt:0, aocnt:0, modulscnt:0}, 
-    chdis:{},
-    chdos:{},
-    chais:{}, 
-    chaos:{}};
+    statistic: {dicnt:0, docnt:0, aicnt:0, aocnt:0, modulscnt:0, ndicnt:0, ndocnt:0, naicnt:0, naocnt:0}, 
+    chdis:{}, chdos:{}, chais:{}, chaos:{},chndis:{}, chndos:{}, chnais:{}, chnaos:{} 
+  };
   let chdis = cfgchs.chs.chdis, chdos = cfgchs.chs.chdos, chais = cfgchs.chs.chais, chaos = cfgchs.chs.chaos;
+  let chndis = cfgchs.chs.chndis, chndos = cfgchs.chs.chndos, chnais = cfgchs.chs.chnais, chnaos = cfgchs.chs.chnaos;
   let dimap = [], domap = [], aimap = [], aomap = [] ;
+  let ndimap = [], ndomap = [], naimap = [], naomap = [] ;
   for (let tagname in cfgtags.tags){
     let tag = cfgtags.tags[tagname];
     let chnum = tag.props.CHID;
     //тільки для локальних каналів
-    if (tag.props.TYPE !=='AI' && tag.props.TYPE !=='DI' && tag.props.TYPE !=='AO' && tag.props.TYPE !=='DO') continue 
+    if (tag.props.TYPE !=='AI' && tag.props.TYPE !=='DI' && tag.props.TYPE !=='AO' && tag.props.TYPE !=='DO' && tag.props.TYPE !=='NAI' && tag.props.TYPE !=='NDI' && tag.props.TYPE !=='NAO' && tag.props.TYPE !=='NDO') continue 
     if (chnum>0) {
       let ch = {
         id:chnum, 
@@ -132,8 +133,8 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
         type: tag.props.TYPE,//тип каналу в модулі
         subtype: tag.props.SUBTYPE, //позначення підтипу каналу, напр 4-20mA                   
         modid: tag.props.MODID, //повне позначення модуля, напр CJF01_A3AI
-        dev:tag.props.DEV,//острів, напр CJF01
-        modnmb:tag.props.MODNMB, //номер модуля в острові, напр 1
+        dev:tag.props.DEV,//острів/пристрій, напр CJF01
+        modnmb:tag.props.MODNMB || 0, //номер модуля в острові/пристрої, напр 1
         modalias: tag.props.MODNM, //коротке позначення модуля, напр A3      
       };
       let chinmod = {//стрктура для мепінгу в модулі
@@ -149,7 +150,7 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
         dev[chinmod.modid] = {dev:ch.dev, modnmb:ch.modnmb, modalias:ch.modalias};//{submdicnt:0, submdocnt:0, submaicnt:0, submaocnt:0, submodules:{}};
         cfgchs.chs.statistic.modulscnt++;
       };
-      if (!cfgchs.moduls[chinmod.modid]) cfgchs.moduls[chinmod.modid]={chdis:[],chdos:[], chais:[], chaos:[]};
+      if (!cfgchs.moduls[chinmod.modid]) cfgchs.moduls[chinmod.modid]={chdis:[],chdos:[], chais:[], chaos:[], chndis:[],chndos:[], chnais:[], chnaos:[]};
       let statistic = cfgchs.chs.statistic;
       let modul = cfgchs.moduls[chinmod.modid]; 
       switch (tag.props.TYPE) {
@@ -213,6 +214,68 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
             aomap[chnum] = tagname;
           }
           break;                          
+        //network variables
+        case 'NDI':
+          chndis[chnum] = ch;          
+          if (chnum>statistic.ndicnt) statistic.ndicnt=chnum;   
+          if (modul.chndis[chinmod.ch]) {
+            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+          } else { 
+            modul.chndis[chinmod.ch] = chinmod;
+          } 
+          if (ndimap[chnum]) {
+            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${ndimap[chnum]}`);
+            ndimap[chnum] += '; ' + tagname;
+          } else {
+            ndimap[chnum] = tagname;
+          }
+          break;
+        case 'NDO':
+          chndos[chnum] = ch;
+          if (chnum>statistic.ndocnt) statistic.ndocnt=chnum;             
+          if (modul.chndos[chinmod.ch]) {
+            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+          } else { 
+            modul.chndos[chinmod.ch] = chinmod;
+          }         
+          if (ndomap[chnum]) {
+            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${ndomap[chnum]}`);
+            ndomap[chnum] += '; ' + tagname;
+          } else {
+            ndomap[chnum] = tagname;
+          }
+          break;
+        case 'NAI':       
+          chnais[chnum] = ch; 
+          if (chnum>statistic.naicnt) statistic.naicnt=chnum;           
+          if (modul.chnais[chinmod.ch]) {
+            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+          } else { 
+            modul.chnais[chinmod.ch] = chinmod;
+          }         
+          if (naimap[chnum]) {
+            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${naimap[chnum]}`);
+            naimap[chnum] += '; ' + tagname;
+          } else {
+            naimap[chnum] = tagname;
+          }
+          break;
+        case 'NAO':
+          chnaos[chnum] = ch; 
+          if (chnum>statistic.naocnt) statistic.naocnt=chnum; 
+          if (modul.chnaos[chinmod.ch]) {
+            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+          } else { 
+            modul.chnaos[chinmod.ch] = chinmod;
+          }        
+          if (naomap[chnum]) {
+            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${naomap[chnum]}`);
+            naomap[chnum] += '; ' + tagname;
+          } else {
+            naomap[chnum] = tagname;
+          }
+          break;                          
+          
         default:
           break;
       }  
@@ -226,6 +289,11 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
   chsmapfn (cfgchmap, chdos, domap, 'do');
   chsmapfn (cfgchmap, chais, aimap, 'ai');
   chsmapfn (cfgchmap, chaos, aomap, 'ao');
+  chsmapfn (cfgchmap, chndis, ndimap, 'ndi');
+  chsmapfn (cfgchmap, chndos, ndomap, 'ndo');
+  chsmapfn (cfgchmap, chnais, naimap, 'nai');
+  chsmapfn (cfgchmap, chnaos, naomap, 'nao');
+
   return (cfgchmap);
 } 
 
@@ -270,7 +338,9 @@ function chsmapfn (chsmap, chs, tmpmap, chtype) {
 
 //перетворення даних IOMAP в форму PACFramework
 function iomaptoplcform (cfgchs) {
-  const submodtypes = {'0':'-','1':'DI','2':'DO','3':'AI','4':'AO' };//1- DICH, 2- DOCH, 3- AICH, 4 – AOCH
+  const submodtypes = {'0':'-','1':'DI','2':'DO','3':'AI','4':'AO', '5': 'COM',
+  '6':'NDI','7':'NDO','8':'NAI','9':'NAO',
+  };//1- DICH, 2- DOCH, 3- AICH, 4 – AOCH
   const chs = cfgchs.chs;
   const moduls = cfgchs.moduls;
   const iomap = cfgchs.iomapplc = {genform:{}, plcform : []};
@@ -284,6 +354,7 @@ function iomaptoplcform (cfgchs) {
   devnames.sort();
 
   for (let devname of devnames) {
+    //console.log ('===================== Module ' + devname);
     let dev = cfgchs.devs[devname];
     //упорядковуємо по номеру модуля
     let modules = [];
@@ -306,14 +377,26 @@ function iomaptoplcform (cfgchs) {
     let modulegenform = iomap.genform [modulename] = {};
     //канали можуть поичинатися не з 0, тому приводимо їх до канонічної форми, щоб рахувалися з 0 та не містили пустот
     let chdis =[], chdos=[], chais=[], chaos=[]; //приведені масиви
+    let chndis =[], chndos=[], chnais=[], chnaos=[]; //приведені масиви
+
     for (ch of module.chdis) {if (typeof ch === 'object') chdis.push (ch)}
     for (ch of module.chais) {if (typeof ch === 'object') chais.push (ch)}
     for (ch of module.chdos) {if (typeof ch === 'object') chdos.push (ch)}
     for (ch of module.chaos) {if (typeof ch === 'object') chaos.push (ch)}        
+    for (ch of module.chndis) {if (typeof ch === 'object') chndis.push (ch)}
+    for (ch of module.chnais) {if (typeof ch === 'object') chnais.push (ch)}
+    for (ch of module.chndos) {if (typeof ch === 'object') chndos.push (ch)}
+    for (ch of module.chnaos) {if (typeof ch === 'object') chnaos.push (ch)}        
+
     modulegenform.submdicnt = Math.ceil(chdis.length/16);
     modulegenform.submdocnt = Math.ceil(chdos.length/16);
     modulegenform.submaicnt = Math.ceil(chais.length/16);
     modulegenform.submaocnt = Math.ceil(chaos.length/16);
+    modulegenform.submndicnt = Math.ceil(chndis.length/16);
+    modulegenform.submndocnt = Math.ceil(chndos.length/16);
+    modulegenform.submnaicnt = Math.ceil(chnais.length/16);
+    modulegenform.submnaocnt = Math.ceil(chnaos.length/16);
+
     modulegenform.submodules = [
       {type:'0', chidstart:0, adrstart:0,chcnt:0},
       {type:'0', chidstart:0, adrstart:0,chcnt:0},
@@ -361,6 +444,48 @@ function iomaptoplcform (cfgchs) {
         chcnt: i+1<module.submaocnt ? 16 : (chaos.length === 16) ? 16: (chaos.length % 16)};
       nmbsubmodule ++; 
     }
+    //network chs
+    for (let i=0; i<modulegenform.submndicnt; i++) {
+      if (!chndis[i*16]) continue; //якщо є пропущені номери
+      let chidstart = chndis[i*16].id;  
+      modulegenform.submodules [nmbsubmodule] = {
+        type:'6', 
+        chidstart :  chidstart, 
+        adrstart: chs.chndis[chidstart].adr, 
+        chcnt: i+1<module.submndicnt ? 16 : (chndis.length === 16) ? 16: (chndis.length % 16)};
+      nmbsubmodule ++; 
+    } 
+    for (let i=0; i<modulegenform.submndocnt; i++) {
+      if (!chndos[i*16]) continue; //якщо є пропущені номери
+      let chidstart = chndos[i*16].id;  
+      modulegenform.submodules [nmbsubmodule] = {
+        type:'7', 
+        chidstart : chidstart, 
+        adrstart: chs.chndos[chidstart].adr, 
+        chcnt: i+1<module.submndocnt ? 16 : (chndos.length === 16) ? 16: (chndos.length % 16)};
+      nmbsubmodule ++; 
+    } 
+    for (let i=0; i<modulegenform.submnaicnt; i++) {
+      if (!chnais[i*16]) continue; //якщо є пропущені номери
+      let chidstart = chnais[i*16].id;  
+      modulegenform.submodules [nmbsubmodule] = {
+        type:'8', 
+        chidstart :  chidstart, 
+        adrstart: chs.chnais[chidstart].adr, 
+        chcnt: i+1<module.submnaicnt ? 16 : (chnais.length === 16) ? 16: (chnais.length % 16)};
+      nmbsubmodule ++; 
+    } 
+    for (let i=0; i<modulegenform.submnaocnt; i++) {
+      if (!chnaos[i*16]) continue; //якщо є пропущені номери
+      let chidstart = chnaos[i*16].id;  
+      modulegenform.submodules [nmbsubmodule] = {
+        type:'9', 
+        chidstart :  chidstart, 
+        adrstart: chs.chnaos[chidstart].adr, 
+        chcnt: i+1<module.submnaocnt ? 16 : (chnaos.length === 16) ? 16: (chnaos.length % 16)};
+      nmbsubmodule ++; 
+    }
+
     //MODTYPE вказує в DB тип підмодулів в одному модулі, наприклад 1324; //1- DICH, 2- DOCH, 3- AICH, 4 – AOCH, 5 - COM
     //MODTYPE 1000 - це один підмодуль до 16 каналів 1- DICH
     //CHCNTS - d191 вказує на кількість каналів на кожен Submodule, комбінація в 16-ковому форматі - 1 (16#XYZQ) X - для першого субмодуля 
@@ -424,7 +549,7 @@ function getactrtsinfo (cfgtags, cfgtypes) {
         descr = (start > 0)? descr.substring (0, start): descr ; 
         act.description = descr;
         logmsg (`Встановив ${actname} назву ${descr}`, 0); 
-      } else if (!act.description && (tag.props.TYPE==='AO' || tag.props.TYPE==='DO')) { //кейс PACFramework
+      } else if (!act.description && (tag.props.TYPE==='AO' || tag.props.TYPE==='DO' || tag.props.TYPE==='NAO' || tag.props.TYPE==='NDO')) { //кейс PACFramework
         let descr = tag.props.DESCRIPTION;
         let start = descr.search (/\(/); //за опис беремо все що до дужок 
         descr = (start > 0)? descr.substring (0, start): descr ; 
@@ -623,7 +748,7 @@ function syncobs (masterob, newob, deleteoldfields = 0) {
 function logmsg (msg, toconsole=1) {
   let now = new Date ();
   msg = now.toLocaleTimeString() + '.' + now.getMilliseconds() + ' ' + msg;
-  msglog += msg  + '\n'; 
+  msglog += msg  + '\r\n'; 
   if (toconsole===1) console.log (msg);
 }
 //виведення msglog в файл, при createnew = 1 - створюється новий файл 

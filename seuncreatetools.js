@@ -101,14 +101,32 @@ function create_chs(cfgchs) {
   
   const stat = cfgchs.chs.statistic;
   jsSTExchangeFile.STExchangeFile.dataBlock = jsdataBlock;
-  addvar_to_dataBlock("CHDI", `ARRAY[0..${stat.dicnt}] OF CH_CFG`, jsdataBlock);
-  addvar_to_dataBlock("CHDI_HMI", `ARRAY[0..${stat.dicnt}] OF CH_HMI`, jsdataBlock); 
-  addvar_to_dataBlock("CHDO", `ARRAY[0..${stat.docnt}] OF CH_CFG`, jsdataBlock);
-  addvar_to_dataBlock("CHDO_HMI", `ARRAY[0..${stat.docnt}] OF CH_HMI`, jsdataBlock); 
-  addvar_to_dataBlock("CHAI", `ARRAY[0..${stat.aicnt}] OF CH_CFG`, jsdataBlock);
-  addvar_to_dataBlock("CHAI_HMI", `ARRAY[0..${stat.aicnt}] OF CH_HMI`, jsdataBlock); 
-  addvar_to_dataBlock("CHAO", `ARRAY[0..${stat.aocnt}] OF CH_CFG`, jsdataBlock);
-  addvar_to_dataBlock("CHAO_HMI", `ARRAY[0..${stat.aocnt}] OF CH_HMI`, jsdataBlock); 
+  //кількість DI та NDI і т.п. в масиві повинна бути однакова, та співпадати з означеним в інтерфейсі
+  let dicnt = stat.dicnt > stat.ndicnt ? stat.dicnt: stat.ndicnt;
+  let docnt = stat.docnt > stat.ndocnt ? stat.docnt: stat.ndocnt;
+  let aicnt = stat.aicnt > stat.naicnt ? stat.aicnt: stat.naicnt;
+  let aocnt = stat.aocnt > stat.naocnt ? stat.aocnt: stat.naocnt;
+  logmsg(`ATTENTION: Масив в параметрах функціях виклику повинен бути розмірів:`);
+  logmsg(`DI/NDI:${dicnt} DO/NDO:${docnt} AI/NAI:${aicnt} AO/NAO:${aocnt}`);
+  
+  addvar_to_dataBlock("CHDI", `ARRAY[0..${dicnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHDI_HMI", `ARRAY[0..${dicnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CHDO", `ARRAY[0..${docnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHDO_HMI", `ARRAY[0..${docnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CHAI", `ARRAY[0..${aicnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHAI_HMI", `ARRAY[0..${aicnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CHAO", `ARRAY[0..${aocnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHAO_HMI", `ARRAY[0..${aocnt}] OF CH_HMI`, jsdataBlock);
+
+  addvar_to_dataBlock("CHNDI", `ARRAY[0..${dicnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHNDI_HMI", `ARRAY[0..${dicnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CHNDO", `ARRAY[0..${docnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHNDO_HMI", `ARRAY[0..${docnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CHNAI", `ARRAY[0..${aicnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHNAI_HMI", `ARRAY[0..${aicnt}] OF CH_HMI`, jsdataBlock); 
+  addvar_to_dataBlock("CHNAO", `ARRAY[0..${aocnt}] OF CH_CFG`, jsdataBlock);
+  addvar_to_dataBlock("CHNAO_HMI", `ARRAY[0..${aocnt}] OF CH_HMI`, jsdataBlock);
+
   addvar_to_dataBlock("CH_BUF", "CH_BUF", jsdataBlock);
 
   //добавлення MODULES
@@ -168,10 +186,10 @@ function create_vars(cfgtags) {
   let jsdataBlock = {};
   addvars_to_dataBlock(cfgtags, jsdataBlock);
   jsSTExchangeFile.STExchangeFile.dataBlock = jsdataBlock;
-  if (cfgtags.statistic.DI && cfgtags.statistic.DI.cnt) addvar_to_dataBlock("DIH", "DIH", jsdataBlock);
-  if (cfgtags.statistic.DO && cfgtags.statistic.DI.cnt) addvar_to_dataBlock("DOH", "DOH", jsdataBlock);
-  if (cfgtags.statistic.AI && cfgtags.statistic.DI.cnt) addvar_to_dataBlock("AIH", "AIH", jsdataBlock);
-  if (cfgtags.statistic.AO && cfgtags.statistic.DI.cnt) addvar_to_dataBlock("AOH", "AOH", jsdataBlock);
+  if (cfgtags.statistic.DI && cfgtags.statistic.DI.cnt || cfgtags.statistic.NDI && cfgtags.statistic.NDI.cnt) addvar_to_dataBlock("DIH", "DIH", jsdataBlock);
+  if (cfgtags.statistic.DO && cfgtags.statistic.DI.cnt || cfgtags.statistic.NDO && cfgtags.statistic.NDO.cnt) addvar_to_dataBlock("DOH", "DOH", jsdataBlock);
+  if (cfgtags.statistic.AI && cfgtags.statistic.AI.cnt || cfgtags.statistic.NAI && cfgtags.statistic.NAI.cnt) addvar_to_dataBlock("AIH", "AIH", jsdataBlock);
+  if (cfgtags.statistic.AO && cfgtags.statistic.AO.cnt || cfgtags.statistic.NAO && cfgtags.statistic.NAO.cnt) addvar_to_dataBlock("AOH", "AOH", jsdataBlock);
   addvar_to_dataBlock("VARBUF", "VARBUF", jsdataBlock);
 
   let jsDDTSource = [];
@@ -345,10 +363,12 @@ function createDDTSource(DDTName, DDTcontent, PACFWtype = "VAR_CFG", version = "
         break;
       } else {
         //{ _attributes: { name: 'STA', typeName: 'INT'}, comment: { _text: 'статус' }}
+        let vartype = tag.props.TYPE;
+        if (vartype[0].toUpperCase() === 'N') vartype = vartype.replace('N', '');
         jsDDTsource.structure.variables.push({
           _attributes: {
             name: tag.props.TAGNAME,
-            typeName: tag.props.TYPE + "VAR_CFG",
+            typeName: vartype + "VAR_CFG",
           },
           comment: { _text: tag.props.DESCRIPTION },
         });
@@ -361,6 +381,10 @@ function createDDTSource(DDTName, DDTcontent, PACFWtype = "VAR_CFG", version = "
     for (let actname in acttrs) {
       let act = acttrs[actname];
       const acttrtype = DDTcontent.types[act.type];
+      if (!acttrtype) {
+        logmsg (`Не знайдено тип ВМ для ${actname}!`);
+        continue;//тільки при помилках
+      }      
       //check CYRYLYC
       let rforeign = /[^\u0000-\u007f]/;
       if (rforeign.test(act.name)) {
@@ -395,16 +419,16 @@ function createDDTSource(DDTName, DDTcontent, PACFWtype = "VAR_CFG", version = "
         //перевірка чи конкретний тип, чи загальні
         switch (PACFWtype) {
           case "DIVAR_HMI":
-            pushenbl = tag.props.TYPE === "DI";
+            pushenbl = tag.props.TYPE === "DI" || tag.props.TYPE === "NDI";
             break;
           case "DOVAR_HMI":
-            pushenbl = tag.props.TYPE === "DO";
+            pushenbl = tag.props.TYPE === "DO" || tag.props.TYPE === "NDO";
             break;
           case "AIVAR_HMI":
-            pushenbl = tag.props.TYPE === "AI";
+            pushenbl = tag.props.TYPE === "AI" || tag.props.TYPE === "NAI";
             break;
           case "AOVAR_HMI":
-            pushenbl = tag.props.TYPE === "AO";
+            pushenbl = tag.props.TYPE === "AO" || tag.props.TYPE === "NAO";
             break;
           default:
             pushenbl = true;
@@ -426,6 +450,10 @@ function createDDTSource(DDTName, DDTcontent, PACFWtype = "VAR_CFG", version = "
     for (let actname in acttrs) {
       let act = acttrs[actname];
       const acttrtype = DDTcontent.types[act.type];
+      if (!acttrtype) {
+        logmsg (`Не знайдено тип ВМ для ${actname}!`);
+        continue;//тільки при помилках
+      }         
       //check CYRYLYC
       let rforeign = /[^\u0000-\u007f]/;
       if (rforeign.test(act.name)) {
@@ -460,9 +488,9 @@ function addvars_to_dataBlock(cfgtags, jsdataBlock) {
       _attributes: { name: "VARS", typeName: "VARS" },
       instanceElementDesc: [],
     };
-    /*{
-    _attributes: { name: 'VARS', typeName: 'VARS' },
-    instanceElementDesc: [
+    /*вигляд в парсеному XML 
+    {_attributes: { name: 'VARS', typeName: 'VARS' },
+      instanceElementDesc: [
       { _attributes: [Object], instanceElementDesc: [Array] },
       { _attributes: [Object], instanceElementDesc: [Array] }]
     }*/
@@ -473,7 +501,7 @@ function addvars_to_dataBlock(cfgtags, jsdataBlock) {
       //check CYRYLYC
       let rforeign = /[^\u0000-\u007f]/;
       if (rforeign.test(tag.props.TAGNAME)) {
-        console.log("Кирилиця в імені " + tag.props.TAGNAME);
+        logmsg("Кирилиця в імені " + tag.props.TAGNAME);
         break;
       } else {
         /*  _attributes: { name: 'VNabor_T1_OPN' },
@@ -485,10 +513,8 @@ function addvars_to_dataBlock(cfgtags, jsdataBlock) {
           _attributes: { name: tag.props.TAGNAME },
           instanceElementDesc: [],
         };
-        let chid =
-          tag.props.TAGNAME.substr(0, 3).toLowerCase() === "rez"
-            ? 0
-            : tag.props.CHID;
+        let chid = tag.props.TAGNAME.substr(0, 3).toLowerCase() === "rez" ? 0 : tag.props.CHID;
+        chid = !tag.props.CHID ? 0 : tag.props.CHID;
         //добавлення змінюваних властивостей
         jsVAR.instanceElementDesc.push({
           _attributes: { name: "ID" },
@@ -503,10 +529,7 @@ function addvars_to_dataBlock(cfgtags, jsdataBlock) {
           value: { _text: chid.toString() },
         });
         //добавляємо машстабування, якщо воно вказане
-        if (
-          (tag.props.TYPE === "AI" || tag.props.TYPE === "AO") &&
-          tag.props.SCALE
-        ) {
+        if ((tag.props.TYPE === "AI" || tag.props.TYPE === "AO" || tag.props.TYPE === "NAI" || tag.props.TYPE === "NAO") && tag.props.SCALE) {
           let scalear = tag.props.SCALE.replace(/[()]/g, "").split("..");
           if (scalear.length === 2) {
             let min = parseFloat(scalear[0]).toFixed(3);
@@ -566,7 +589,11 @@ function addacts_to_dataBlock(cfgacts, jsdataBlock) {
     for (let actname in acttrs) {
       let act = acttrs[actname];
       const acttrtype = cfgacts.types[act.type];
-      //check CYRYLYC
+      if (!acttrtype) {
+        logmsg (`Не знайдено тип ВМ для ${actname}!`);
+        continue; //тільки при помилці
+      }
+        //check CYRYLYC
       let rforeign = /[^\u0000-\u007f]/;
       if (rforeign.test(act.name)) {
         console.log("Кирилиця в імені " + act.name);
@@ -620,6 +647,9 @@ function createmainprogram(secttype = "section", task = "MAST") {
   (*обробка входів*)
   dichs();
   aichs();
+  ndichs();
+  naichs();
+
   divars ();
   aivars ();
   
@@ -632,6 +662,8 @@ function createmainprogram(secttype = "section", task = "MAST") {
   aovars();
   dochs();
   aochs();
+  ndochs();
+  naochs();
   
   moduls();`;
 
@@ -674,10 +706,45 @@ END_FOR;\n\n`;
       IF CHAO[i].CLSID = 0 THEN CHAO[i].CLSID := 16#0040;END_IF;
   END_IF;
 END_FOR;\n\n`;
+
+let bodyNDICHS = `FOR i := 1 TO ${cfgchs.chs.statistic.ndicnt} DO
+(*на першому циклі ініціалізуємо змінні ID + CLSID*)
+IF PLC.STA_SCN1 THEN
+    CHDI[i].ID := INT_TO_UINT(i);
+    IF CHDI[i].CLSID = 0 THEN CHDI[i].CLSID := 16#0060;END_IF;
+END_IF;
+END_FOR;\n\n`;
+let bodyNDOCHS = `FOR i := 1 TO ${cfgchs.chs.statistic.ndocnt} DO
+(*на першому циклі ініціалізуємо змінні ID + CLSID*)
+IF PLC.STA_SCN1 THEN
+    CHNDO[i].ID := INT_TO_UINT(i);
+    IF CHNDO[i].CLSID = 0 THEN CHNDO[i].CLSID := 16#0070;END_IF;
+END_IF;
+END_FOR;\n\n`;
+let bodyNAICHS = `FOR i := 1 TO ${cfgchs.chs.statistic.naicnt} DO
+(*на першому циклі ініціалізуємо змінні ID + CLSID*)
+IF PLC.STA_SCN1 THEN
+    CHNAI[i].ID := INT_TO_UINT(i);
+    IF CHNAI[i].CLSID = 0 THEN CHNAI[i].CLSID := 16#0080;END_IF;
+END_IF;
+END_FOR;\n\n`;
+let bodyNAOCHS = `FOR i := 1 TO ${cfgchs.chs.statistic.naocnt} DO
+(*на першому циклі ініціалізуємо змінні ID + CLSID*)
+IF PLC.STA_SCN1 THEN
+    CHNAO[i].ID := INT_TO_UINT(i);
+    IF CHNAO[i].CLSID = 0 THEN CHNAO[i].CLSID := 16#0090;END_IF;
+END_IF;
+END_FOR;\n\n`;
+
   let jsdichsprog = {identProgram: {_attributes: { name: "dichs", type: secttype, task: task }},STSource: {}};
   let jsdochsprog = {identProgram: {_attributes: { name: "dochs", type: secttype, task: task }},STSource: {}};
   let jsaichsprog = {identProgram: {_attributes: { name: "aichs", type: secttype, task: task }},STSource: {}};
   let jsaochsprog = {identProgram: {_attributes: { name: "aochs", type: secttype, task: task }},STSource: {}};
+  let jsndichsprog = {identProgram: {_attributes: { name: "ndichs", type: secttype, task: task }},STSource: {}};
+  let jsndochsprog = {identProgram: {_attributes: { name: "ndochs", type: secttype, task: task }},STSource: {}};
+  let jsnaichsprog = {identProgram: {_attributes: { name: "naichs", type: secttype, task: task }},STSource: {}};
+  let jsnaochsprog = {identProgram: {_attributes: { name: "naochs", type: secttype, task: task }},STSource: {}};
+
   let chs = cfgchs.chs;
   for (let chnmb in chs.chdis) {
     let ch = chs.chdis[chnmb];
@@ -695,7 +762,24 @@ END_FOR;\n\n`;
     let ch = chs.chaos[chnmb];
     bodyAOCHS +=`CHAOFN (CHCFG := CHAO[${chnmb}], CHHMI := CHAO_HMI[${chnmb}], PLCCFG := PLC, CHBUF := CH_BUF, RAWINT => ${ch.adr});\n`;
   }
-  
+  //net
+  for (let chnmb in chs.chndis) {
+    let ch = chs.chndis[chnmb];
+    bodyNDICHS +=`CHDIFN (RAW :=  CHNDI[${chnmb}].STA_VRAW,  CHCFG := CHNDI[${chnmb}],  CHHMI := CHNDI_HMI[${chnmb}],  PLCCFG := PLC, CHBUF := CH_BUF);\n`;
+  }
+  for (let chnmb in chs.chndos) {
+    let ch = chs.chndos[chnmb];
+    bodyNDOCHS +=`CHDOFN (CHCFG := CHNDO[${chnmb}],  CHHMI := CHNDO_HMI[${chnmb}],  PLCCFG := PLC, CHBUF := CH_BUF, RAW => CHNDO[${chnmb}].STA_VRAW);\n`;
+  }
+  for (let chnmb in chs.chnais) {
+    let ch = chs.chnais[chnmb];
+    bodyNAICHS +=`CHAIFN (RAWINT :=  CHNAI[${chnmb}].VAL, CHCFG := CHNAI[${chnmb}], CHHMI := CHNAI_HMI[${chnmb}], PLCCFG := PLC, CHBUF := CH_BUF);\n`
+  }
+  for (let chnmb in chs.chnaos) {
+    let ch = chs.chnaos[chnmb];
+    bodyNAOCHS +=`CHAOFN (CHCFG := CHNAO[${chnmb}], CHHMI := CHNAO_HMI[${chnmb}], PLCCFG := PLC, CHBUF := CH_BUF, RAWINT => CHNAO[${chnmb}].VAL);\n`;
+  }
+
   const progdescr =
     "(* Ця секція згенерована автоматично PACFramework Tools " +
     new Date().toLocaleString() +
@@ -704,7 +788,11 @@ END_FOR;\n\n`;
   jsdochsprog.STSource = progdescr + bodyDOCHS;
   jsaichsprog.STSource = progdescr + bodyAICHS;
   jsaochsprog.STSource = progdescr + bodyAOCHS;
-  
+  jsndichsprog.STSource = progdescr + bodyNDICHS;
+  jsndochsprog.STSource = progdescr + bodyNDOCHS;
+  jsnaichsprog.STSource = progdescr + bodyNAICHS;
+  jsnaochsprog.STSource = progdescr + bodyNAOCHS;
+
   //-------------- PLC MAPS
   let jsmapsprog = {identProgram: {_attributes: { name: "plcmaps", type: secttype, task: task }},STSource: {}};
   let dicnt = chs.statistic.dicnt;
@@ -714,10 +802,14 @@ END_FOR;\n\n`;
   let modulscnt = chs.statistic.modulscnt; 
   let bodyPLCMAPS = `(*кількість каналів та модулів*)
   PLC.DICNT := ${dicnt};\n  PLC.DOCNT := ${docnt};\n  PLC.AICNT := ${aicnt};\n  PLC.AOCNT := ${aocnt};\n  PLC.MODULSCNT := ${modulscnt};
-  (*завантажити в буфер підмодуль 0 модуля 0*)\n  MODULES[0].STA.11 := true;\n\n(*типи 1- DICH, 2- DOCH, 3- AICH, 4 – AOCH, 5 - COM*)\n`;
+  (*завантажити в буфер підмодуль 0 модуля 0*)\n  MODULES[0].STA.11 := true;\n\n(*типи 1- DICH, 2- DOCH, 3- AICH, 4 – AOCH, 5 - COM, 6- NDICH, 7- NDOCH, 8- NAICH, 9 – NAOCH*)\n`;
   let modules = cfgchs.iomapplc.plcform;
   for (let i=0; i<modulscnt; i++) {
     let module = modules[i];
+    if (!module) {
+      logmsg(`ERR: Не знайдено модуль з номером ${i}, помилка в коді програми `);
+      continue
+    }
     bodyPLCMAPS += `MODULES[${i}].TYPE1 := 16#${module.MODTYPE}; (*${module.MODTYPESTR}*)\n`;
     bodyPLCMAPS += `MODULES[${i}].CHCNTS := 16#${module.CHCNTS};(*${module.CHCNTSD}*)\n`;
     bodyPLCMAPS += `MODULES[${i}].STRTNMB[0] := ${module.STRTNMB0};\n`;
@@ -728,7 +820,7 @@ END_FOR;\n\n`;
 
   jsmapsprog.STSource = progdescr + bodyPLCMAPS;
 
-  return {jsdichsprog, jsdochsprog, jsaichsprog, jsaochsprog, jsmapsprog};
+  return {jsdichsprog, jsdochsprog, jsaichsprog, jsaochsprog, jsndichsprog, jsndochsprog, jsnaichsprog, jsnaochsprog, jsmapsprog};
 }
 //ствобрює секції обробки змінних
 function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
@@ -783,6 +875,21 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
       case "AO":
         bodyAOVARS += `AOVARFN(CHCFG := CHAO[VARS.${tag.props.TAGNAME}.CHID], AOVARCFG := VARS.${tag.props.TAGNAME}, AOVARHMI := AOH.${tag.props.TAGNAME}, VARBUF := VARBUF, PLCCFG := PLC, CHAO := CHAO); (*${tag.props.DESCRIPTION}*) \n`;
         break;
+      //net
+      case "NDI":
+        bodyDIVARS += `DIVARFN(CHCFG := CHNDI[VARS.${tag.props.TAGNAME}.CHID], DIVARCFG := VARS.${tag.props.TAGNAME}, DIVARHMI := DIH.${tag.props.TAGNAME}, VARBUF := VARBUF, PLCCFG := PLC, CHDI := CHNDI); (*${tag.props.DESCRIPTION}*) \n`;
+        //`DIVARFN (CHCFG := CHDI[VARS.VNabor_T1_OPN.CHID],  DIVARCFG := VARS.VNabor_T1_OPN,  DIVARHMI := VAR_HMI.VNabor_T1_OPN,  VARBUF := VARBUF, PLCCFG := PLC, CHDI := CHDI);`
+        break;
+      case "NDO":
+        bodyDOVARS += `DOVARFN(CHCFG := CHNDO[VARS.${tag.props.TAGNAME}.CHID], DOVARCFG := VARS.${tag.props.TAGNAME}, DOVARHMI := DOH.${tag.props.TAGNAME}, VARBUF := VARBUF, PLCCFG := PLC, CHDO := CHNDO); (*${tag.props.DESCRIPTION}*) \n`;
+        break;
+      case "NAI":
+        bodyAIVARS += `AIVARFN(CHCFG := CHNAI[VARS.${tag.props.TAGNAME}.CHID], AIVARCFG := VARS.${tag.props.TAGNAME}, AIVARHMI := AIH.${tag.props.TAGNAME}, VARBUF := VARBUF, PLCCFG := PLC, CHAI := CHNAI); (*${tag.props.DESCRIPTION}*) \n`;
+        break;
+      case "NAO":
+        bodyAOVARS += `AOVARFN(CHCFG := CHNAO[VARS.${tag.props.TAGNAME}.CHID], AOVARCFG := VARS.${tag.props.TAGNAME}, AOVARHMI := AOH.${tag.props.TAGNAME}, VARBUF := VARBUF, PLCCFG := PLC, CHAO := CHNAO); (*${tag.props.DESCRIPTION}*) \n`;
+        break;
+  
       default:
         break;
     }
@@ -796,7 +903,7 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
   jsdovarsprog.STSource = progdescr + bodyDOVARS;
   jsaivarsprog.STSource = progdescr + bodyAIVARS;
   jsaovarsprog.STSource = progdescr + bodyAOVARS;
-
+  
   return { jsdivarsprog, jsdovarsprog, jsaivarsprog, jsaovarsprog };
 }
 //ствобрює секцію ініціалізації
@@ -818,10 +925,7 @@ function createinitvarsprogram(cfgtags, secttype = "SR", task = "MAST") {
   });
   for (tag of tags) {
     let tagname = tag.props.TAGNAME;
-    let chid =
-      tag.props.TAGNAME.substr(0, 3).toLowerCase() === "rez"
-        ? 0
-        : tag.props.CHID;
+    let chid = tag.props.TAGNAME.substr(0, 3).toLowerCase() === "rez" ? 0: tag.props.CHID;
     let id = tag.props.ID.toString();
     bodyprog += `VARS.${tagname}.ID:=${id}; VARS.${tagname}.CHID:=${chid}; VARS.${tagname}.CHIDDF:=${chid};\n`;
     //VARS.VNabor_T1_OPN.ID:=10001;  VARS.VNabor_T1_OPN.CHID:=1;   VARS.VNabor_T1_OPN.CHIDDF:=1;
@@ -847,7 +951,11 @@ function createactrssprogram(cfgacts, secttype = "SR", task = "MAST") {
   for (acttrname in acts) {
     const act = acts[acttrname];
     const acttype = act.type;
-    if (!acttrsbytypes[acttype].acttrs) acttrsbytypes[acttype].acttrs = {};
+    if (!acttrsbytypes[acttype]) {
+      logmsg (`Не знайдено тип ВМ для ${acttrname}!`);
+      continue;//тільки при помилках
+    }
+      if (!acttrsbytypes[acttype].acttrs) acttrsbytypes[acttype].acttrs = {};
     acttrsbytypes[acttype].acttrs[acttrname] = act;
   }
   for (acttrtypename in acttrsbytypes) {
@@ -906,11 +1014,16 @@ function createactrssprogram(cfgacts, secttype = "SR", task = "MAST") {
 }
 //створює операторські екрани для змінних
 function create_operscrvars(cfgtags) {
-  let replacers = { DI: [], DO: [], AI: [], AO: [] };
+  let replacers = { DI: [], DO: [], AI: [], AO: []};
+
   for (tagname in cfgtags.tags) {
     let tag = cfgtags.tags[tagname];
     if (tag.props.TYPE) {
-      replacers[tag.props.TYPE].push({ main: tagname });
+      let tagtype = tag.props.TYPE;
+      if (tagtype[0].toUpperCase()==='N') {
+        tagtype = tagtype.replace('N','')
+      } //NDI,NDO,NAI,NAO
+      replacers[tagtype].push({ main: tagname });
     }
   }
   if (replacers.DI.length>0) operatorscreen_dupreplace("divar.xcr", "DIH", replacers.DI, "DIVARS");
@@ -924,6 +1037,10 @@ function create_operscracts(cfgacts) {
   const types = cfgacts.types;
   for (actname in cfgacts.acttrs) {
     let act = cfgacts.acttrs[actname];
+    if (!act.type || !types[act.type]) {
+      logmsg (`Не знайдено тип ВМ для ${actname}!`);
+      continue;//тільки при помилках
+    }   
     let type = types[act.type].fnname;
     if (type) {
       if (typeof (replacers[type]) === 'undefined') {
@@ -1055,6 +1172,10 @@ function operatorscreen_dupreplace(filename, prefixin = "DIH", replacer, newscre
       }
     }
     //заміна властивостей існуючого елементу
+    if (!replacer[0]) {
+      logmsg('Не знайдено елемент');
+      return      
+    }
     newlink = replacer[0].main;
     txtelm = screenelm_replace(group.props.content,0,0, group.props.mainoldlink, newlink);
     xmlar[group.props.start] = txtelm;
