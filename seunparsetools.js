@@ -149,9 +149,7 @@ function xefparseall () {
     //теги всередині vars
     for (let vartag of plcblocks[varblocknm].instanceElementDesc) {
       let tagname = vartag._attributes.name;
-      mastertags [tagname] = {
-        tagname : tagname
-      }
+      mastertags [tagname] = {tagname : tagname}
       //console.log (tagname);
       //перебір по полям
       for (field of vartag.instanceElementDesc) {
@@ -185,6 +183,10 @@ function xefparseall () {
       let typename = plcblocks[varblocknm]._attributes.typeName;
       let typeblock = alltypes[typename];
       let topoadr = plcblocks[varblocknm]._attributes.topologicalAddress;
+      if (!topoadr) {
+        logmsg(`ERR: Блок ${varblocknm} не має адреси:`);
+        continue
+      }
       let mwbias = parseInt(topoadr.toUpperCase().replace('%MW',''));
       
       logmsg(`Блок ${varblocknm} в PLC:`,0);
@@ -290,13 +292,14 @@ function xefparseall () {
   }
   logmsg(`Добавлено інформацію по SUBMODULE`);
   //process.exit();
+
   
   logmsg("------------------ Формування бази даних ПЛК");
   let plc_plcs = {
-    types:{}, memap:{}, plc:{}
+    types:{}, memap:{}, plc:{}, parastohmi:{}
   };
-  typeblocknames = {PLC_CFG:"PLC_CFG"};
-  varblocknames = {PLC:"PLC"}; 
+  typeblocknames = {PLC_CFG:"PLC_CFG", PARASTOHMI: "PARASTOHMI"};
+  varblocknames = {PLC:"PLC", PARASTOHMI: "PARASTOHMI"}; 
   found = true;
   for (let typeblockname in typeblocknames) {
     //для кожного типу каркасу можуть бути по кілька блоків
@@ -327,6 +330,20 @@ function xefparseall () {
     addaddr (plc[fieldname].type, adrob);
   }
   logmsg(`Добавлено інформацію по PLC`);
+
+  //PARASTOHMI
+  startadr = plcblocks[varblocknames.PARASTOHMI]._attributes.topologicalAddress;
+  mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
+  let parastohmi = plc_plcs.parastohmi;
+  parastohmi.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
+  parastohmi.type = typeblocknames.PARASTOHMI;
+  for (let fieldname in plc_plcs.types.PARASTOHMI) {
+    parastohmi[fieldname] = {type: plc_plcs.types.PARASTOHMI[fieldname].type};
+    parastohmi[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+    addaddr (parastohmi[fieldname].type, adrob);
+  }
+  logmsg(`Добавлено інформацію по PARASTOHMI`);
 
   fs.writeFileSync (seunresultfiles + 'plc_tags.json',JSON.stringify(plctags),"utf8");
   fs.writeFileSync (seunresultfiles + 'plc_chs.json',JSON.stringify(plc_chs),"utf8");

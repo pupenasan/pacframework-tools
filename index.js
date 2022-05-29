@@ -1,6 +1,8 @@
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
+const lodash = require('lodash');
+//const _ = require('underscore');
 global.userdir = path.normalize(os.homedir() + "/pacframeworktools");
 global.inipath = path.normalize(os.homedir() + "/pacframeworktools/config.ini");
 
@@ -36,10 +38,13 @@ const seuncreatetools = require("./seuncreatetools");
 const couchtools = require("./couchtools");
 const ui2tools = require("./ui2tools");
 const wincctoos = require("./wincctools");
+const citecttools = require("./citecttools.js");
+
 
 //скорочені назви функцій
 const logmsg = masterdatatools.logmsg;
 const writetolog = masterdatatools.writetolog;
+let cfgopts;
 
 couchtools.opts.user = process.env.COUCH_USER;
 couchtools.opts.password = process.env.COUCH_PASS;
@@ -76,6 +81,12 @@ switch (process.argv[2]) {
   case "wincccreatealm":
     mastertags_to_almlist();
     masteracts_to_almlist();
+  case "citectcreateeqip":
+    citectcreateeqip();
+    break;
+  case "citectcreatehmi":
+    citectcreatehmi();
+    break;    
   case "":
     break;
   case undefined:
@@ -85,6 +96,16 @@ switch (process.argv[2]) {
     console.log("Немає такої утиліти");
     break;
 }
+
+function citectcreateeqip(){
+  seunparseall();
+  citecttools.create_equipment();
+} 
+
+function citectcreatehmi(){
+  seunparseall();
+  citecttools.create_hmi(); 
+} 
 
 //паристь усі файли з tia
 async function tiaparseall() {
@@ -146,9 +167,31 @@ function getcfgfromxls() {
   masterdatatools.opts.logfile = "test.log";
   let cfgtags = getcfgtags_fromxls();
   let cfgacts = getcfacts_fromxls(cfgtags);
-
   let cfgchs = {};
   let cfgchmap = chsmap_fromcfg(cfgchs, cfgtags);
+  
+  //розміщення додактових опцій по розділам
+  for (sectionname in cfgopts) {
+    let section;
+    switch (sectionname) {
+      case 'tags':
+        section = cfgtags;
+      break;
+      case 'chs':
+        section = cfgchs;      
+        break;
+      case 'acts':
+        section = cfgacts;      
+        break;  
+      default:
+        logmsg (`WRN: Секція ${sectionname} вказана в додактових опціях Excel "other" не має цільоввого призначення`);
+        break;
+    }
+    if (section) {
+      lodash.merge(section, cfgopts[sectionname]); //злиття 2-х обєктів
+    }
+  }
+  //console.log (cfgtags);
 
   //створення папки результату, якщо її немає
   if (fs.existsSync(config.exceltools.pathresult) === false) {
@@ -189,6 +232,7 @@ function getcfgtags_fromxls() {
   filexls = config.exceltools.pathsource + "/" + config.exceltools.pathxlsfile;
   let cfgtags = {};
   cfgtags = exceltools.getcfgtags_fromxls(filexls);
+  cfgopts = exceltools.getothercfg_fromxls(filexls);
   return cfgtags;
 }
 function getcfacts_fromxls(cfgtags) {

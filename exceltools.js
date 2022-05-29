@@ -141,6 +141,32 @@ function getchtypes_fromxls (filexls) {
   return (chtypes);
 }
 
+//отримання інформації про типи каналів
+function getothercfg_fromxls (filexls) {
+  let cfgopts = {};
+  const wb = xlsx.readFile(filexls);
+  const wss = wb.Sheets;
+  const wsopts = wss['other'];
+  for (row of xlsx.utils.sheet_to_json(wsopts)) {
+    //console.log (row);
+    if (!cfgopts[row.SECTION]) cfgopts[row.SECTION] = {};
+    let section = cfgopts[row.SECTION];
+    //console.log (section);
+    let strparaname = row.PARA;
+    let parapath = strparaname.split('.');
+    let para = section;
+    for (paraitem of parapath){
+      if (!para[paraitem]) para[paraitem] = {}
+      para = para[paraitem]; 
+    }
+    para.value =  row.VALUE;
+    //section.para = para;  
+  }
+  //console.log (cfgopts); process.exit();
+  return (cfgopts);
+}
+
+
 //переірка на коректність назв
 function checktagname (tagname) {
   let rforeign = /[^\u0000-\u007f]/;
@@ -158,6 +184,6 @@ function checktagname (tagname) {
 
 
 module.exports = {
-   getcfgtags_fromxls, getacttypes_fromxls, getchtypes_fromxls, 
+   getcfgtags_fromxls, getacttypes_fromxls, getchtypes_fromxls, getothercfg_fromxls,
    opts
 };

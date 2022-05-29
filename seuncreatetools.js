@@ -3,7 +3,7 @@ const fs = require("fs");
 let path = require("path");
 const xmlparser = require("xml-js"); //https://www.npmjs.com/package/xml-js
 const ini = require("ini"); //https://github.com/npm/ini#readme
-//const config = ini.parse (fs.readFileSync(global.inipath, 'utf-8'));
+const config = ini.parse (fs.readFileSync(global.inipath, 'utf-8'));
 const userdir = path.normalize(os.homedir() + "/pacframeworktools");
 const masterdatatools = require("./masterdatatools");
 
@@ -13,6 +13,8 @@ const opts = {
   resultpath: "tounitypro",
   source: "source",
 };
+let memmap; //рошарена змінна для збереження мепінгу усіх змінних на адреси, заповнюється при виклику оновлення тегів 
+const plctype = config.seuncreatetools.plctype || 'M340'; 
 
 masterdatatools.opts.logfile = opts.logfile;
 //скорочені назви функцій
@@ -74,7 +76,7 @@ jsSTExchangeFileAll.STExchangeFile.program.push (JSON.parse(JSON.stringify(creat
 //test ();
 
 function create_all(cfgchs, cfgtags, cfgacts) {
-
+  memmap = cfgtags.memmap; 
   create_chs (cfgchs);
   create_vars(cfgtags);
   create_actrtrs (cfgacts);
@@ -129,6 +131,7 @@ function create_chs(cfgchs) {
 
   addvar_to_dataBlock("CH_BUF", "CH_BUF", jsdataBlock);
 
+
   //добавлення MODULES
   let modules = [];
   for (let i=0; i<stat.modulscnt; i++) {
@@ -138,7 +141,7 @@ function create_chs(cfgchs) {
     _attributes: { name: `MODULES`, typeName: `ARRAY[0..${stat.modulscnt-1}] OF MODULE` },
     instanceElementDesc: modules
   });
-
+  datablockvars_map (jsdataBlock);
   //загальний файл імпорту  
   for (let variable of jsdataBlock.variables) {
     jsSTExchangeFileAll.STExchangeFile.dataBlock.variables.push (JSON.parse(JSON.stringify(variable)));
@@ -198,6 +201,7 @@ function create_vars(cfgtags) {
   jsDDTSource.push(createDDTSource("DOH", cfgtags, "DOVAR_HMI"));
   jsDDTSource.push(createDDTSource("AIH", cfgtags, "AIVAR_HMI"));
   jsDDTSource.push(createDDTSource("AOH", cfgtags, "AOVAR_HMI"));
+  datablockvars_map (jsdataBlock);
 
   jsSTExchangeFile.STExchangeFile.DDTSource = jsDDTSource;
 
@@ -255,7 +259,7 @@ function create_vars(cfgtags) {
       spaces: 4,
       fullTagEmptyElement: true,
     });
-  let filename = userdir + "\\" + opts.resultpath + "\\initvars.xst";
+  let filename = userdir + "\\" + opts.resultpath + "\\A_initvars.xst";
   fs.writeFileSync(filename, xmlcontent);
   logmsg(` Файл імпорту ${filename} створено.`);
 
@@ -274,10 +278,11 @@ function create_actrtrs (cfgacts) {
   jsSTExchangeFile.STExchangeFile.dataBlock = jsdataBlock;
   addvar_to_dataBlock("ACTH", "ACTH", jsdataBlock);
   addvar_to_dataBlock("ACTBUF", "ACTTR_CFG", jsdataBlock);
-  addvar_to_dataBlock("DIVAR_TMP", "DIVAR_CFG", jsdataBlock);
-  addvar_to_dataBlock("AIVAR_TMP", "AIVAR_CFG", jsdataBlock);
-  addvar_to_dataBlock("DOVAR_TMP", "DOVAR_CFG", jsdataBlock);
-  addvar_to_dataBlock("AOVAR_TMP", "AOVAR_CFG", jsdataBlock);
+  //addvar_to_dataBlock("DIVAR_TMP", "DIVAR_CFG", jsdataBlock); перенесено в PFWV, видалити після тестування
+  //addvar_to_dataBlock("AIVAR_TMP", "AIVAR_CFG", jsdataBlock);
+  //addvar_to_dataBlock("DOVAR_TMP", "DOVAR_CFG", jsdataBlock);
+  //addvar_to_dataBlock("AOVAR_TMP", "AOVAR_CFG", jsdataBlock);
+  datablockvars_map (jsdataBlock);
 
   let jsDDTSource = [];
   jsDDTSource.push(createDDTSource("ACT", cfgacts, "ACT_CFG"));
@@ -326,11 +331,19 @@ function create_actrtrs (cfgacts) {
     delete jsSTExchangeFile.STExchangeFile.dataBlock;
   }
 
+  //файли імпорту для ініціалізації
+  jsprog = createinitactsprogram(cfgacts, "SR", "MAST");
+  jsSTExchangeFile.STExchangeFile.program = jsprog;
+  jsSTExchangeFileAll.STExchangeFile.program.push (JSON.parse(JSON.stringify(jsprog))); 
+  let xmlcontent = xmlxddheader + xmlparser.js2xml(jsSTExchangeFile, {compact: true,ignoreComment: true,spaces: 4,fullTagEmptyElement: true,});
+  let filename = userdir + "\\" + opts.resultpath + "\\A_initacts.xst";
+  fs.writeFileSync(filename, xmlcontent);
+  logmsg(` Файл імпорту ${filename} створено.`);
+
   //файли імпорту для операторських екранів
   logmsg(` Створюю файли імпорту для операторських екранів`);
   create_operscracts(cfgacts);
 }
-
 
 function dateTimeSEUN() {
   let now = new Date();
@@ -630,9 +643,31 @@ function addacts_to_dataBlock(cfgacts, jsdataBlock) {
 //добавляє змінну заданого типу в dataBlock без означення значень елементів за замовченням
 function addvar_to_dataBlock(varname, vartype, jsdataBlock) {
   if (!jsdataBlock.variables) jsdataBlock.variables = [];
-  jsdataBlock.variables.push({
-    _attributes: { name: varname, typeName: vartype },
-  });
+  let var1 = {_attributes: { name: varname, typeName: vartype}};  
+  jsdataBlock.variables.push(var1);
+}
+
+//меппінг змінних на блоки даних 
+function datablockvars_map (jsdataBlock){
+  if (!memmap) {
+    logmsg ('WRN: Не означені адреси в майстерданих, адреси назначатися не будуть');
+    return
+  }
+  for (variable of jsdataBlock.variables){
+    let varname, adr;
+    if (variable._attributes) {
+      varname = variable._attributes.name;  
+    }
+    //console.log (varname); 
+    //якщо є адреса, добавляємо і її
+    if (varname && memmap[varname] && memmap[varname].addr ) {
+      adr = memmap[varname].addr.value;
+      if (adr) {
+        variable._attributes.topologicalAddress = adr.toString(); 
+        //console.log (variable);
+      }    
+    }
+  }
 }
 
 //ствобрює секцію main
@@ -640,32 +675,34 @@ function createmainprogram(secttype = "section", task = "MAST") {
   let body = `PLCFN (PLC := PLC);
   (*виклик при старті*)
   IF PLC.STA_SCN1 THEN
-    plcmaps();
-    initvars();
+    A_plcmaps();
+    A_initvars();
+    A_initacts();
   END_IF;
   
   (*обробка входів*)
-  dichs();
-  aichs();
-  ndichs();
-  naichs();
+  A_dichs();
+  A_aichs();
+  A_ndichs();
+  A_naichs();
 
-  divars ();
-  aivars ();
-  
+  A_divars ();
+  A_aivars ();
+  A_write_parahmi();
+
   (*обробка виконавчих механізмів*)
-  resolution();
-  actrs();
+  A_resolution();
+  A_actrs();
   
   (*обробка виходів*)
-  dovars();
-  aovars();
-  dochs();
-  aochs();
-  ndochs();
-  naochs();
+  A_dovars();
+  A_aovars();
+  A_dochs();
+  A_aochs();
+  A_ndochs();
+  A_naochs();
   
-  moduls();`;
+  A_moduls();`;
 
   const progdescr =
     "(* Ця секція згенерована автоматично PACFramework Tools " +
@@ -736,16 +773,56 @@ IF PLC.STA_SCN1 THEN
 END_IF;
 END_FOR;\n\n`;
 
-  let jsdichsprog = {identProgram: {_attributes: { name: "dichs", type: secttype, task: task }},STSource: {}};
-  let jsdochsprog = {identProgram: {_attributes: { name: "dochs", type: secttype, task: task }},STSource: {}};
-  let jsaichsprog = {identProgram: {_attributes: { name: "aichs", type: secttype, task: task }},STSource: {}};
-  let jsaochsprog = {identProgram: {_attributes: { name: "aochs", type: secttype, task: task }},STSource: {}};
-  let jsndichsprog = {identProgram: {_attributes: { name: "ndichs", type: secttype, task: task }},STSource: {}};
-  let jsndochsprog = {identProgram: {_attributes: { name: "ndochs", type: secttype, task: task }},STSource: {}};
-  let jsnaichsprog = {identProgram: {_attributes: { name: "naichs", type: secttype, task: task }},STSource: {}};
-  let jsnaochsprog = {identProgram: {_attributes: { name: "naochs", type: secttype, task: task }},STSource: {}};
+  let jsdichsprog = {identProgram: {_attributes: { name: "A_dichs", type: secttype, task: task }},STSource: {}};
+  let jsdochsprog = {identProgram: {_attributes: { name: "A_dochs", type: secttype, task: task }},STSource: {}};
+  let jsaichsprog = {identProgram: {_attributes: { name: "A_aichs", type: secttype, task: task }},STSource: {}};
+  let jsaochsprog = {identProgram: {_attributes: { name: "A_aochs", type: secttype, task: task }},STSource: {}};
+  let jsndichsprog = {identProgram: {_attributes: { name: "A_ndichs", type: secttype, task: task }},STSource: {}};
+  let jsndochsprog = {identProgram: {_attributes: { name: "A_ndochs", type: secttype, task: task }},STSource: {}};
+  let jsnaichsprog = {identProgram: {_attributes: { name: "A_naichs", type: secttype, task: task }},STSource: {}};
+  let jsnaochsprog = {identProgram: {_attributes: { name: "A_naochs", type: secttype, task: task }},STSource: {}};
 
   let chs = cfgchs.chs;
+
+  bodyDICHS +=`(* ------------ Діагностика каналів -------------- *)\n`
+  bodyDOCHS +=`(* ------------ Діагностика каналів -------------- *)\n`
+  bodyAICHS +=`(* ------------ Діагностика каналів -------------- *)\n`
+  bodyAOCHS +=`(* ------------ Діагностика каналів -------------- *)\n`
+  for (let chnmb in chs.chdis) {
+    let ch = chs.chdis[chnmb];
+    if (ch.adr.toUpperCase().search('%I')>=0) {
+      //CHAI[1].STA_BAD:=%i0.4.0.err;
+      bodyDICHS +=`CHDI[${chnmb}].STA_BAD := %I${ch.adr.toUpperCase().replace('%I','')}.err;\n`;
+    }
+  }
+  for (let chnmb in chs.chdos) {
+    let ch = chs.chdos[chnmb];
+    if (ch.adr.toUpperCase().search('%Q')>=0) {
+      bodyDOCHS +=`CHDO[${chnmb}].STA_BAD := %I${ch.adr.toUpperCase().replace('%Q','')}.err;\n`;
+    }
+  }
+  for (let chnmb in chs.chais) {
+    let ch = chs.chais[chnmb];
+    if (ch.adr.toUpperCase().search('%IW')>=0) {
+      bodyAICHS +=`CHAI[${chnmb}].STA_BAD := %I${ch.adr.toUpperCase().replace('%IW','')}.err;\n`;
+    }
+  }
+  for (let chnmb in chs.chaos) {
+    let ch = chs.chaos[chnmb];
+    if (ch.adr.toUpperCase().search('%QW')>=0) {
+      bodyAOCHS +=`CHAO[${chnmb}].STA_BAD := %I${ch.adr.toUpperCase().replace('%QW','')}.err;\n`;
+    }
+  }
+    
+  bodyDICHS +=`\n(* ------------ Прив'язка до реальних каналів -------------- *)\n`
+  bodyDOCHS +=`\n(* ------------ Прив'язка до реальних каналів -------------- *)\n`
+  bodyAICHS +=`\n(* ------------ Прив'язка до реальних каналів -------------- *)\n`
+  bodyAOCHS +=`\n(* ------------ Прив'язка до реальних каналів -------------- *)\n`
+  bodyNDICHS +=`\n(* ------------ Прив'язка до реальних каналів -------------- *)\n`
+  bodyNDOCHS +=`\n(* ------------ Прив'язка до реальних каналів -------------- *)\n`
+  bodyNAICHS +=`\n(* ------------ Прив'язка до реальних каналів -------------- *)\n`
+  bodyNAOCHS +=`\n(* ------------ Прив'язка до реальних каналів -------------- *)\n`
+
   for (let chnmb in chs.chdis) {
     let ch = chs.chdis[chnmb];
     bodyDICHS +=`CHDIFN (RAW := ${ch.adr},  CHCFG := CHDI[${chnmb}],  CHHMI := CHDI_HMI[${chnmb}],  PLCCFG := PLC, CHBUF := CH_BUF);\n`;
@@ -794,7 +871,7 @@ END_FOR;\n\n`;
   jsnaochsprog.STSource = progdescr + bodyNAOCHS;
 
   //-------------- PLC MAPS
-  let jsmapsprog = {identProgram: {_attributes: { name: "plcmaps", type: secttype, task: task }},STSource: {}};
+  let jsmapsprog = {identProgram: {_attributes: { name: "A_plcmaps", type: secttype, task: task }},STSource: {}};
   let dicnt = chs.statistic.dicnt;
   let docnt = chs.statistic.docnt;
   let aicnt = chs.statistic.aicnt;
@@ -830,25 +907,25 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
     bodyAOVARS = "";
   let jsdivarsprog = {
     identProgram: {
-      _attributes: { name: "divars", type: secttype, task: task },
+      _attributes: { name: "A_divars", type: secttype, task: task },
     },
     STSource: {},
   };
   let jsdovarsprog = {
     identProgram: {
-      _attributes: { name: "dovars", type: secttype, task: task },
+      _attributes: { name: "A_dovars", type: secttype, task: task },
     },
     STSource: {},
   };
   let jsaivarsprog = {
     identProgram: {
-      _attributes: { name: "aivars", type: secttype, task: task },
+      _attributes: { name: "A_aivars", type: secttype, task: task },
     },
     STSource: {},
   };
   let jsaovarsprog = {
     identProgram: {
-      _attributes: { name: "aovars", type: secttype, task: task },
+      _attributes: { name: "A_aovars", type: secttype, task: task },
     },
     STSource: {},
   };
@@ -910,7 +987,7 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
 function createinitvarsprogram(cfgtags, secttype = "SR", task = "MAST") {
   let jsprog = {
     identProgram: {
-      _attributes: { name: "initvars", type: secttype, task: task },
+      _attributes: { name: "A_initvars", type: secttype, task: task },
     },
     STSource: {},
   };
@@ -937,12 +1014,53 @@ function createinitvarsprogram(cfgtags, secttype = "SR", task = "MAST") {
   jsprog.STSource = progdescr + bodyprog;
   return jsprog;
 }
+
+//ствобрює секцію ініціалізації
+function createinitactsprogram(cfgacts, secttype = "SR", task = "MAST") {
+  let jsprog = {
+    identProgram: {
+      _attributes: { name: "A_initacts", type: secttype, task: task },
+    },
+    STSource: {},
+  };
+  let bodyprog = "";
+
+  const acttrs = [];
+  for (let actname in cfgacts.acttrs) {
+    acttrs.push(cfgacts.acttrs[actname]);
+  }
+  acttrs.sort(function (a, b) {
+    return a.id- b.id;
+  });
+  for (act of acttrs) {
+    let actname = act.name;
+    let id = act.id.toString();
+    bodyprog += `ACT.${actname}.ID:=${id};`
+    let acttype;
+    if (act.type) {
+      acttype = cfgacts.types[act.type]; 
+      let clsid = acttype.clsid;
+      if (clsid>0) {
+        clsid = clsid.toString(16); 
+        bodyprog += `ACT.${actname}.CLSID:=16#${clsid};\n`;
+        //ACT.VLVD1.ID:=1; ACT.VLVD1.CLSID:=16#2011;
+      }  
+    }    
+  }
+  const progdescr =
+    "(* Ця секція згенерована автоматично PACFramework Tools " +
+    new Date().toLocaleString() +
+    "*)\n";
+  jsprog.STSource = progdescr + bodyprog;
+  return jsprog;
+}
+
 //ствобрює секцію обробки ВМ
 function createactrssprogram(cfgacts, secttype = "SR", task = "MAST") {
-  let jsprog = {identProgram: {_attributes: { name: "actrs", type: secttype, task: task }},STSource: {}};
-  let jsresolution = {identProgram: {_attributes: { name: "resolution", type: secttype, task: task }},STSource: {}};
+  let jsprog = {identProgram: {_attributes: { name: "A_actrs", type: secttype, task: task }},STSource: {}};
+  let jsresolution = {identProgram: {_attributes: { name: "A_resolution", type: secttype, task: task }},STSource: {}};
 
-  let bodyPROG = `DIVAR_TMP.ID:=0; DIVAR_TMP.CLSID:=0;\nDOVAR_TMP.ID:=0; DOVAR_TMP.CLSID:=0;\nAIVAR_TMP.ID:=0; AIVAR_TMP.CLSID:=0;\nAOVAR_TMP.ID:=0; AOVAR_TMP.CLSID:=0;\n`;
+  let bodyPROG = `PFWV.DIVAR_TMP.ID:=0; PFWV.DIVAR_TMP.CLSID:=0;\nPFWV.DOVAR_TMP.ID:=0; PFWV.DOVAR_TMP.CLSID:=0;\nPFWV.AIVAR_TMP.ID:=0; PFWV.AIVAR_TMP.CLSID:=0;\nPFWV.AOVAR_TMP.ID:=0; PFWV.AOVAR_TMP.CLSID:=0;\n`;
   bodyresPROG = '(* Якщо не відправляється команда TRUE, ВМ не виконує жодної команди керування*)\n';
   const acts = cfgacts.acttrs;
   //упорядкування по типу
@@ -984,16 +1102,16 @@ function createactrssprogram(cfgacts, secttype = "SR", task = "MAST") {
             //console.log (`${ionameinfn} -> ${vartype}`);
             switch (vartype) {
               case 'DI': 
-                bodyPROG += 'DIVAR_TMP'; 
+                bodyPROG += 'PFWV.DIVAR_TMP'; 
                 break
               case 'AI':
-                bodyPROG += 'AIVAR_TMP'; 
+                bodyPROG += 'PFWV.AIVAR_TMP'; 
                 break
               case 'DO':
-                bodyPROG += 'DOVAR_TMP'; 
+                bodyPROG += 'PFWV.DOVAR_TMP'; 
                 break
               case 'AO':
-                bodyPROG += 'AOVAR_TMP';  
+                bodyPROG += 'PFWV.AOVAR_TMP';  
                 break 
             }
           } 
