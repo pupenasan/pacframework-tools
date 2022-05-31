@@ -411,7 +411,7 @@ function iomaptoplcform (cfgchs) {
         type:'1', 
         chidstart :  chidstart, 
         adrstart: chs.chdis[chidstart].adr, 
-        chcnt: i+1<module.submdicnt ? 16 : (chdis.length === 16) ? 16: (chdis.length % 16)};
+        chcnt: i+1<modulegenform.submdicnt ? 16 : (chdis.length % 16 === 0 ) ? 16: (chdis.length % 16)};
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submdocnt; i++) {
@@ -421,7 +421,7 @@ function iomaptoplcform (cfgchs) {
         type:'2', 
         chidstart : chidstart, 
         adrstart: chs.chdos[chidstart].adr, 
-        chcnt: i+1<module.submdocnt ? 16 : (chdos.length === 16) ? 16: (chdos.length % 16)};
+        chcnt: i+1<modulegenform.submdocnt ? 16 : (chdos.length % 16 === 0) ? 16: (chdos.length % 16)};
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submaicnt; i++) {
@@ -431,7 +431,7 @@ function iomaptoplcform (cfgchs) {
         type:'3', 
         chidstart :  chidstart, 
         adrstart: chs.chais[chidstart].adr, 
-        chcnt: i+1<module.submaicnt ? 16 : (chais.length === 16) ? 16: (chais.length % 16)};
+        chcnt: i+1<modulegenform.submaicnt ? 16 : (chais.length % 16 === 0) ? 16: (chais.length % 16)};
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submaocnt; i++) {
@@ -441,7 +441,7 @@ function iomaptoplcform (cfgchs) {
         type:'4', 
         chidstart :  chidstart, 
         adrstart: chs.chaos[chidstart].adr, 
-        chcnt: i+1<module.submaocnt ? 16 : (chaos.length === 16) ? 16: (chaos.length % 16)};
+        chcnt: i+1<modulegenform.submaocnt ? 16 : (chaos.length % 16 === 0) ? 16: (chaos.length % 16)};
       nmbsubmodule ++; 
     }
     //network chs
@@ -452,7 +452,7 @@ function iomaptoplcform (cfgchs) {
         type:'6', 
         chidstart :  chidstart, 
         adrstart: chs.chndis[chidstart].adr, 
-        chcnt: i+1<module.submndicnt ? 16 : (chndis.length === 16) ? 16: (chndis.length % 16)};
+        chcnt: i+1<modulegenform.submndicnt ? 16 : (chndis.length % 16 === 0) ? 16: (chndis.length % 16)};
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submndocnt; i++) {
@@ -462,7 +462,7 @@ function iomaptoplcform (cfgchs) {
         type:'7', 
         chidstart : chidstart, 
         adrstart: chs.chndos[chidstart].adr, 
-        chcnt: i+1<module.submndocnt ? 16 : (chndos.length === 16) ? 16: (chndos.length % 16)};
+        chcnt: i+1<modulegenform.submndocnt ? 16 : (chndos.length % 16 === 0) ? 16: (chndos.length % 16)};
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submnaicnt; i++) {
@@ -472,7 +472,7 @@ function iomaptoplcform (cfgchs) {
         type:'8', 
         chidstart :  chidstart, 
         adrstart: chs.chnais[chidstart].adr, 
-        chcnt: i+1<module.submnaicnt ? 16 : (chnais.length === 16) ? 16: (chnais.length % 16)};
+        chcnt: i+1<modulegenform.submnaicnt ? 16 : (chnais.length % 16 === 0) ? 16: (chnais.length % 16)};
       nmbsubmodule ++; 
     } 
     for (let i=0; i<modulegenform.submnaocnt; i++) {
@@ -482,7 +482,7 @@ function iomaptoplcform (cfgchs) {
         type:'9', 
         chidstart :  chidstart, 
         adrstart: chs.chnaos[chidstart].adr, 
-        chcnt: i+1<module.submnaocnt ? 16 : (chnaos.length === 16) ? 16: (chnaos.length % 16)};
+        chcnt: i+1<modulegenform.submnaocnt ? 16 : (chnaos.length % 16 === 0) ? 16: (chnaos.length % 16)};
       nmbsubmodule ++; 
     }
 

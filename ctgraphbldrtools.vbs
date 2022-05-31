@@ -9,8 +9,8 @@ end if
 if command="create_varpages" then 
   create_varpages WScript.Arguments(1), WScript.Arguments(2), WScript.Arguments(3), WScript.Arguments(4), WScript.Arguments(5), WScript.Arguments(6), WScript.Arguments(7)
 end if
-if command="create_plcpage" then 
-  create_plcpage WScript.Arguments(1), WScript.Arguments(2), WScript.Arguments(3)
+if command="create_mappage" then 
+  create_mappage WScript.Arguments(1), WScript.Arguments(2), WScript.Arguments(3), WScript.Arguments(4), WScript.Arguments(5)
 end if
 
 
@@ -83,67 +83,45 @@ function create_varpage (ctprojectname, pfwincludename, pagebasename, typename, 
     end if  
   next 
   if j<>0 then 
-    WScript.Echo  "------------------------"
+    WScript.Echo  "========================"
     GraphicsBuilder.PageSaveAsEx ctprojectname, "PACFramework", pagebasename & pageidx
     GraphicsBuilder.PageClose
   end if  
 end function
 
-function create_plcpage (ctprojectname, pfwincludename, moduls)
-  dim armoduls
+function create_mappage (ctprojectname, pfwincludename, rackname, moduls, ids)
+  dim armoduls, arids
   dim prselected
-  pagebasename = "RACK"
-  armoduls = Split(moduls,",") 
+  armoduls = Split(moduls,",")
+  arids = Split(ids,",") 
   On Error Resume Next
   Err.Clear
-  
-  dim j
-  j = 0 
   strtan = 10000 'AN для першого розміщення обєкту 
-  pageidx = 1
+  GraphicsBuilder.PageOpenEx pfwincludename, "PACFramework", "group", 1
+  If Err.Number <> 0 Then
+    WScript.Echo "Could not open genie group"
+    return
+  end if
+  GraphicsBuilder.PageSelectObject strtan
+  strtx = GraphicsBuilder.AttributeX
+  strty = GraphicsBuilder.AttributeY
+  x = strtx
+  y = strty        
+  WScript.Echo  "======================"
   for i=lbound(armoduls) to ubound(armoduls)
-    arcomponents = Split(armoduls(i),"_")' rackname_modulename
-    rackname = arcomponents(0)
+    WScript.Echo armoduls(i)
     modulename =  Replace(armoduls(i), rackname & "_", "") 
-    'WScript.Echo rackname & " " & modulename
-
-    if j=0 then
-      GraphicsBuilder.PageOpenEx pfwincludename, "PACFramework", "group", 1
-      If Err.Number <> 0 Then
-        WScript.Echo "Could not open genie group"
-        return
-      end if
-      GraphicsBuilder.PageSelectObject strtan
-      strtx = GraphicsBuilder.AttributeX
-      strty = GraphicsBuilder.AttributeY
-      x = strtx
-      y = strty        
-    end if
-    
     GraphicsBuilder.LibraryObjectPlaceEx ctprojectname, "pacframework", "MODULE", 1, true, x, y
-    GraphicsBuilder.LibraryObjectPutProperty "Module", "MODULE" & i
-    GraphicsBuilder.LibraryObjectPutProperty "modname", rackname & "." & j
+    GraphicsBuilder.LibraryObjectPutProperty "Module", "MODULE" & arids(i)
+    GraphicsBuilder.LibraryObjectPutProperty "modname", rackname & "." & i
     GraphicsBuilder.LibraryObjectPutProperty "moddescr", modulename
     if i = lbound(armoduls) then
       width = GraphicsBuilder.AttributeExtentX - x
       hight = GraphicsBuilder.AttributeExtentY - y 
     end if
-    'WScript.Echo  strty
     x = x + width + 1
-    if (i> lbound(armoduls)) and (racknameprev <> rackname) or i=ubound(armoduls) then
-      WScript.Echo "Genie " & pagebasename & pageidx & " saved" 
-      GraphicsBuilder.PageSaveAsEx ctprojectname, "PACFramework", pagebasename & pageidx
-      GraphicsBuilder.PageClose
-      j = 0
-      pageidx = pageidx
-    else 
-      j = j + 1   
-    end if
-    racknameprev = rackname
   next 
-  if j<>0 then 
-    WScript.Echo  "------------------------"
-    GraphicsBuilder.PageSaveAsEx ctprojectname, "PACFramework", pagebasename & pageidx
-    GraphicsBuilder.PageClose
-  end if    
+  GraphicsBuilder.PageSaveAsEx ctprojectname, "PACFramework", rackname
+  GraphicsBuilder.PageClose 
+  WScript.Echo "Genie " & rackname & " saved"  
 end function  

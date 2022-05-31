@@ -345,9 +345,150 @@ function xefparseall () {
   }
   logmsg(`Добавлено інформацію по PARASTOHMI`);
 
+  //-------------------- формування бази ВМ
+  let plc_acts = {
+    types:{}, acts:{}, ids: {}, memmap: {}, actbuf: {}
+  };
+  //назви типів та змінних
+  typeblocknames = {ACT:"ACT", ACTH:"ACTH", ACTBUF:"ACTTR_CFG"};
+  varblocknames = {ACT:"ACT", ACTH:"ACTH", ACTBUF:"ACTBUF"}; 
+  typeblocknames_ini = config.seunparsetools.act_typeblocknames ? JSON.parse(config.seunparsetools.act_typeblocknames):{};
+  varblocknames_ini = config.seunparsetools.act_varblocknames ? JSON.parse(config.seunparsetools.act_varblocknames):{};
+  //якщо означені в ini
+  for (typename in typeblocknames) {
+    if (typeblocknames_ini[typename]) typeblocknames[typename] = typeblocknames_ini[typename]
+  }
+  for (tagname in varblocknames) {
+    if (varblocknames_ini[tagname]) varblocknames[tagname] = varblocknames_ini[tagname]
+  }  
+  //перевірка чи знайдені усі змінні
+  found = true;
+  for (let typeblockname in typeblocknames) {
+    //для кожного типу каркасу можуть бути по кілька блоків
+    let types = [];
+    if (typeof typeblocknames[typeblockname] === 'object') {
+      types = typeblocknames[typeblockname]
+    } else {
+      types.push (typeblocknames[typeblockname]);     
+    }
+    for (typename of types) {
+      if (!alltypes[typename]) {
+        logmsg(`ERR: Не знайдено тип ${typename}`);
+        found = false;
+      }
+      plc_acts.types[typename] = alltypes[typename]
+    }   
+  } 
+  for (let varblockname in varblocknames) {
+    //для кожної змінної каркасу можуть бути по кілька блоків
+    let acts = [];
+    if (typeof varblocknames[varblockname] === 'object') {
+      acts = varblocknames[varblockname]
+    } else {
+      acts.push (varblocknames[varblockname])
+    }
+    for (actname of acts) {
+      if (!plcblocks[actname]) {
+        logmsg(`ERR: Не знайдена змінна ${actname}`);
+        found = false;
+      }
+    }
+  }
+  if (!found) {
+    logmsg("Подальше перетворення неможливе!");
+    return
+  } 
+  let masteracts = {};
+  //приведення до типу масив
+  varblocknms = (typeof varblocknames.ACT === 'object') ? varblocknames.ACT : [varblocknames.ACT];
+  for (let varblocknm of varblocknms) {//перебираємо усі ACT
+    let typename = plcblocks[varblocknm]._attributes.typeName;
+    let typeblock = alltypes[typename];
+    logmsg(`Блок ${typename} в PLC:`,0);
+    //змінні всередині acts
+    for (let vartag of plcblocks[varblocknm].instanceElementDesc) {
+      let actname = vartag._attributes.name;
+      masteracts [actname] = {actname : actname}
+      //console.log (actname);
+      //перебір по полям
+      for (field of vartag.instanceElementDesc) {
+        let fieldname = field._attributes.name.toLowerCase();
+        let fieldval =  field.value._text;
+        masteracts [actname][fieldname] = fieldval;
+      }
+      let plctpname = typeblock[actname].type;
+      //якщо тип ВМ ще не добавлено до списку
+      if (!plc_acts.types[plctpname]) {
+        plc_acts.types[plctpname] = alltypes[plctpname]
+      }
+      if (masteracts [actname].clsid) {
+        masteracts [actname].clsid = parseInt(masteracts[actname].clsid)
+      } else {
+        masteracts [actname].clsid = parseInt(opts.clsiddefault[masteracts [actname].type])
+      }
+      if (!masteracts [actname].descr) {
+        masteracts [actname].descr = typeblock[actname].descr
+      }
+      let plccfg = masteracts[actname].plccfg = {type:plctpname};
+      //заповнюємо поля з типу
+      for (let fieldname in alltypes[typeblock[actname].type]){
+        plccfg[fieldname] = {type : alltypes[typeblock[actname].type][fieldname].type}
+      }
+      logmsg(`ВМ ${actname} добавлено в БД:`,0) 
+    }
+  }
+  hmitypes =  ["ACTH"];
+  for (hmitype of hmitypes) {
+    //приведення до типу масив
+    varblocknms = (typeof varblocknames[hmitype] === 'object') ? varblocknames[hmitype] : [varblocknames[hmitype]];
+    for (let varblocknm of varblocknms) {//перебираємо усі ACT_HMI
+      let typename = plcblocks[varblocknm]._attributes.typeName;
+      let typeblock = alltypes[typename];
+      let topoadr = plcblocks[varblocknm]._attributes.topologicalAddress;
+      if (!topoadr) {
+        logmsg(`ERR: Блок ${varblocknm} не має адреси:`);
+        continue
+      }
+      let mwbias = parseInt(topoadr.toUpperCase().replace('%MW',''));
+      
+      logmsg(`Блок ${varblocknm} в PLC:`,0);
+      adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0}
+      //змінні всередині acts
+      for (let vartagname in typeblock) {
+        if (!masteracts [vartagname]) {
+          logmsg (`Не знайдено ВМ ${vartagname} в базі конфігураційних ВМ! Наступне перетворення не можливе!`)
+          return ;
+        }
+        let acthmi = masteracts[vartagname].plchmi = {type: typeblock[vartagname].type};
+        let typehmi = alltypes[typeblock[vartagname].type];
+        //якщо тип ВМ ще не добавлено до списку
+        if (!plc_acts.types[typeblock[vartagname].type]) {
+          plc_acts.types[typeblock[vartagname].type] = typehmi
+        }
+        acthmi.adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+        for (let fieldname in typehmi) {
+          acthmi[fieldname] = {type: typehmi[fieldname].type};
+          acthmi[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+          addaddr (typehmi[fieldname].type, adrob);
+        }
+        logmsg(`ВМ ${vartagname} добавлено в БД:`,0)   
+        //console.log (masteracts [vartagname])
+      }   
+    }
+  } 
+  plc_acts.acts = masteracts;
+  logmsg(`ВМ добавлено в БД`) 
+  //------------------ формування ACTBUF
+  let actbuf = plc_acts.actbuf = JSON.parse(JSON.stringify(plc_acts.types[typeblocknames.ACTBUF]));
+  actbuf.type = typeblocknames.ACTBUF; 
+  actbuf.adr = plcblocks[varblocknames.ACTBUF]._attributes.topologicalAddress;
+  logmsg(`${varblocknames.ACTBUF} добавлено в БД`) 
+
   fs.writeFileSync (seunresultfiles + 'plc_tags.json',JSON.stringify(plctags),"utf8");
   fs.writeFileSync (seunresultfiles + 'plc_chs.json',JSON.stringify(plc_chs),"utf8");
   fs.writeFileSync (seunresultfiles + 'plc_plcs.json',JSON.stringify(plc_plcs),"utf8");
+  fs.writeFileSync (seunresultfiles + 'plc_acts.json',JSON.stringify(plc_acts),"utf8");
+
   writetolog(1);
 }
 

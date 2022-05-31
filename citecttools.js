@@ -49,9 +49,16 @@ function create_equipment(){
     tagstoequipment();
     actstoequipment();
   }
+  logmsg (`Equipment добавлені. Не забудьте обновити усі звязані елементом через Update Equipment!!! `);
   writetolog(1);  
 }
-
+function create_hmi(){
+  if (init()===1) {
+    create_mappages ();  
+    create_varpages ();
+  }
+  writetolog(1);    
+}
 function init(){
   masterdatatools.opts.logfile = "seunparsetools.log";
   masterdatatools.opts.source = config.citecttools.pathsource;
@@ -86,6 +93,8 @@ function init(){
   equiptable = getequipmentypetable(connstrpfw, 'name');
   equiprtpara = getequipparatable(connstrprj, 'value');
   equipinstancetable = getequipmenttable(connstrprj, 'tagprefix')
+
+
   //fs.writeFileSync ("c:/tmp/1.json",  JSON.stringify(equipinstancetable), 'utf8');
   if (Object.keys(equiptypes).length>0) {
     logmsg (`Отримано наступний перелік типів з включеного проекту:`);
@@ -146,20 +155,17 @@ function init(){
     logmsg (`Інформацію по ВМ отримано.`);
   } else {
     logmsg (`ERR: Не вдалося прочитати базу даних ВМ з ${fileacts}!`);
-    return
+    //return
   } 
   
   return 1  
 }
 
-function create_hmi(){
-  if (init()===1) {
-    create_varpages ();
-    create_plcpage ();    
+//---------------------------------- HMI
+function create_varpages(initenbl=false){
+  if (initenbl===true) {
+    if (init()!==1) return 
   }
-  writetolog(1);    
-}
-function create_varpages(){
   let dis='', dos='', ais='', aos='';
   if (mastertags) {
     for (let tgname in mastertags.tags) {
@@ -186,42 +192,62 @@ function create_varpages(){
   }
   let paras = ['ctgraphbldrtools.vbs', 'create_varpages', ctprojectname, pfwincludename, dis, dos, ais, aos, cntelemetspergenie];
   //'C:\\Windows\\SysWOW64\\cscript.exe'
-  logmsg ("Створюю джини для технологічних змінних, зачекайте, це може зайняти кілька хвилин ...");
+  logmsg ("-----  Створюю джини для технологічних змінних, зачекайте, це може зайняти кілька хвилин ...");
   let vbs = child_process.spawnSync('cscript.exe' , paras, {stdio: ['pipe', 'pipe', process.stderr]});//{ stdio: [process.stdin, process.stdout, process.stderr] }
   str = iconv.decode(Buffer.from(vbs.stdout), 'win1251').split('----------');
   if (str.length>0) console.log (str[1]);
 }
-
-function create_plcpage(){
-  let moduls='';
+function create_mappages(initenbl=false){
+  if (initenbl===true) {
+    if (init()!==1) return 
+  }
   if (masterchs) {
-    for (let module of masterchs.modules) {
-      moduls+= module.modid + ','
+    //групування модулів по пристроям
+    let devs = {}, ar = [], l;
+    let str='', devname;
+    for (let i=0; i<masterchs.modules.length; i++) {
+      let modul = masterchs.modules[i];
+      modname = modul.modid;
+      ar = modname.split ('_');
+      l = ar.length;
+      devname = '';
+      if (l>=3) {
+        for (let i=0; i<l-2; i++) {
+          devname+= ar[i] + '_';   
+        }
+        devname = devname.slice(0,-1);     
+      }
+      if (!devs[devname]) {
+        devs[devname] = [];
+      }
+      devs[devname].push ({modname,i}); 
     }
-    moduls = moduls.slice(0, -1)
+    for (let devname in devs) {
+      let dev = devs[devname];
+      let moduls = '';
+      let ids = '';
+      for (let module of dev){
+        moduls += module.modname + ',';
+        ids += module.i + ','; 
+      }
+      moduls = moduls.slice(0,-1);
+      ids = ids.slice(0,-1);
+      let paras = ['ctgraphbldrtools.vbs', 'create_mappage', ctprojectname, pfwincludename, devname, moduls, ids];
+      logmsg (`----- Створюю джини для модулів ${devname}, зачекайте, це може зайняти кілька хвилин ...`);
+      let vbs = child_process.spawnSync('cscript.exe' , paras, {stdio: ['pipe', 'pipe', process.stderr]});//{ stdio: [process.stdin, process.stdout, process.stderr] }
+      str = iconv.decode(Buffer.from(vbs.stdout), 'win1251').split('----------');
+      if (str.length>0) console.log (str[1]);
+    } 
   }
-  let paras = ['ctgraphbldrtools.vbs', 'create_plcpage', ctprojectname, pfwincludename, moduls];
-  logmsg ("Створюю джини для модулів, зачекайте, це може зайняти кілька хвилин ...");
-  let vbs = child_process.spawnSync('cscript.exe' , paras, {stdio: ['pipe', 'pipe', process.stderr]});//{ stdio: [process.stdin, process.stdout, process.stderr] }
-  str = iconv.decode(Buffer.from(vbs.stdout), 'win1251').split('----------');
-  if (str.length>0) console.log (str[1]);
+}
+function create_actpages() {
+  if (initenbl===true) {
+    if (init()!==1) return 
+  }
+  return
 }
 
-
-
-function getprojectsinfo (pathmasterdbf){
-  let connstr = "Provider=VFPOLEDB.1;Data Source=" + pathmasterdbf + ";Mask Password=False;Collating Sequence=MACHINE;CODEPAGE=1251;ANSI=True;"
-  let sqlcmd = "SELECT * FROM MASTER.DBF";
-  let records = runsql (connstr, sqlcmd, 'name');
-  return records
-}
-function getincludesprj () {
-  let sqlcmd = "SELECT * FROM include.DBF";
-  let records = runsql (connstrprj, sqlcmd, 'name');
-  return records
-} 
-
-
+//------------------------------------ Equipments
 //добавлення або оновлення Equipment тегами
 function tagstoequipment () {
   //отримання мастерданих про теги
@@ -291,6 +317,8 @@ function tagstoequipment () {
         //параметри
         paramsdef = JSON.parse(JSON.stringify(equiptypes.AIVAR_HMI.paramsdef));  
         paramsdef.PFW.ID =  tag.id;
+        paramsdef.Range.L = tag.loeng || 0;
+        paramsdef.Range.H = tag.hieng || 100;
         equipment.param = equipparamtostring (paramsdef);
         let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
         equipment.custom1 = startadr;
@@ -355,268 +383,68 @@ function tagstoequipment () {
   logmsg (`----- Модифікую таблицю Equipment технологічними змінними в проекті ${ctprojectpath} ----------------`)
   modifyequipments (newequipments, newequiprtpara);
 } 
-
-//добавлення або оновлення Equipment тегами
-function tagstoequipment () {
-  //отримання мастерданих про теги
-  logmsg (`----- Отримую інформацію про технологічні змінні ----------------`)
-  let newequipments = {};
-  let newequiprtpara = {};
-  let typevarscheck = {AI: equiptypes.AIVAR_HMI, DI: equiptypes.DIVAR_HMI, DO: equiptypes.DOVAR_HMI, AO: equiptypes.AOVAR_HMI, VARBUF: equiptypes.VARBUF};
-  //перевірка на валідність 
-  if (typeof (typevarscheck.AI) === 'object') {
-    if (!equiptypes.AIVAR_HMI.paramsdef || !equiptypes.AIVAR_HMI.paramsdef.PFW || !equiptypes.AIVAR_HMI.paramsdef.PFW.ID) { 
-      typevarscheck.AI = undefined;
-      logmsg (`WRN: Не знайдено необхідний конфігураційний параметр PFW.ID для AIVAR_HMI!`);
-    } else {logmsg ('AIVAR_HMI - ok!')}
-  }else {
-    logmsg (`WRN: Не знайдено необхідні типи для AI зміна Equipment дя нього не буде відбуватися!`);
-  }
-  if (typeof (typevarscheck.DI) === 'object') {
-    if (!equiptypes.DIVAR_HMI.paramsdef || !equiptypes.DIVAR_HMI.paramsdef.PFW || !equiptypes.DIVAR_HMI.paramsdef.PFW.ID) { 
-      typevarscheck.DI = undefined;
-      logmsg (`WRN: Не знайдено необхідний конфігураційний параметр PFW.ID для DIVAR_HMI!`);
-    } else {logmsg ('DIVAR_HMI - ok!')}    
-  } else {
-    logmsg (`WRN: Не знайдено необхідні типи для DI зміна Equipment дя нього не буде відбуватися!`);
-  }
-  if (typeof (typevarscheck.DO) === 'object') {
-    if (!equiptypes.DOVAR_HMI.paramsdef || !equiptypes.DOVAR_HMI.paramsdef.PFW || !equiptypes.DOVAR_HMI.paramsdef.PFW.ID) { 
-      typevarscheck.DO = undefined;
-      logmsg (`WRN: Не знайдено необхідний конфігураційний параметр PFW.ID для DOVAR_HMI!`);
-    } else {logmsg ('DOVAR_HMI - ok!')}
-  } else {
-    logmsg (`WRN: Не знайдено необхідні типи для DO зміна Equipment дя нього не буде відбуватися!`);
-  }
-  if (typeof (typevarscheck.AO) === 'object') {
-    if (!equiptypes.AOVAR_HMI.paramsdef || !equiptypes.AOVAR_HMI.paramsdef.PFW || !equiptypes.AOVAR_HMI.paramsdef.PFW.ID) { 
-      typevarscheck.AO = undefined;
-      logmsg (`WRN: Не знайдено необхідний конфігураційний параметр PFW.ID для AOVAR_HMI!`);
-    } else {logmsg ('AOVAR_HMI - ok!')}
-  } else {
-    logmsg (`WRN: Не знайдено необхідні типи для AO зміна Equipment дя нього не буде відбуватися!`);
-  }
-  if (typeof (typevarscheck.VARBUF) === 'object') {
-    logmsg ('VARBUF - ok!')
-  } else {
-    logmsg (`WRN: Не знайдено необхідні типи для VARBUF зміна Equipment дя нього не буде відбуватися!`);
-  }              
-
-  let filetags = plcsourcepath + '\\' + "plc_tags.json";
-  if (mastertags) {
-    for (let tgname in mastertags.tags) {
-      let equipment; 
-      let tag = mastertags.tags[tgname];
-      if (!tag.plchmi) {
-        logmsg (`ERR: У змінній ${tgname} вдсутня структура plchmi! Змінну ігнорую!`);
-        continue
-      }
-      if (!tag.plchmi.adr) {
-        logmsg (`ERR: У змінні ${tgname} вдсутня адреса в plchmi! Ставлю пусту!`);
-        tag.plchmi.adr = '';
-      }      
-      //AIVAR_HMI
-      if (tag.type === 'AI' && typevarscheck.AI) {
-        equipment = newequipments[tgname] = {};
-        equipment.type = 'AIVAR_HMI';
-        equipment.comment = tag.descr;
-        equipment.alias = tgname;
-        equipment.content = 'FP_AI'
-        //параметри
-        paramsdef = JSON.parse(JSON.stringify(equiptypes.AIVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  tag.id;
-        equipment.param = equipparamtostring (paramsdef);
-        let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
-        equipment.custom1 = startadr;
-        let valuepara = tgname + '_PLCLimits'// Equipment runtime parameters
-        newequiprtpara[valuepara] = {name:'PLCLimits', value: valuepara};
-        //console.log (equipment);
-      }
-      //DIVAR_HMI
-      if (tag.type === 'DI' && typevarscheck.DI) {
-        equipment = newequipments[tgname] = {};
-        equipment.type = 'DIVAR_HMI';
-        equipment.comment = tag.descr;
-        equipment.alias = tgname;
-        //параметри
-        paramsdef = JSON.parse(JSON.stringify(equiptypes.DIVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  tag.id;
-        equipment.param = equipparamtostring (paramsdef);
-        let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
-        equipment.custom1 = startadr;
-        //console.log (equipment);
-      }
-      //DOVAR_HMI
-      if (tag.type === 'DO' && typevarscheck.DO) {
-        equipment = newequipments[tgname] = {};
-        equipment.type = 'DOVAR_HMI';
-        equipment.comment = tag.descr;
-        equipment.alias = tgname;
-        //параметри
-        paramsdef = JSON.parse(JSON.stringify(equiptypes.DOVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  tag.id;
-        equipment.param = equipparamtostring (paramsdef);
-        let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
-        equipment.custom1 = startadr;
-        //console.log (equipment);
-      }
-      //AOVAR_HMI
-      if (tag.type === 'AO' && typevarscheck.AO) {
-        equipment = newequipments[tgname] = {};
-        equipment.type = 'AOVAR_HMI';
-        equipment.comment = tag.descr;
-        equipment.alias = tgname;
-        //параметри
-        paramsdef = JSON.parse(JSON.stringify(equiptypes.AOVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  tag.id;
-        equipment.param = equipparamtostring (paramsdef);
-        let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
-        equipment.custom1 = startadr;
-        //console.log (equipment);
-      }            
-    } 
-    if (typevarscheck.VARBUF){
-      let varbuf = mastertags.varbuf;
-      let equipment = newequipments.VARBUF = {};
-      equipment.type = 'VARBUF';
-      equipment.comment = 'Тег для буферу технологічної змінної';
-      equipment.alias = 'VARBUF';
-      let startadr = varbuf.adr.replace('%MW','').split('.')[0];
-      equipment.custom1 = startadr;      
-    }
-  }
-
-  logmsg (`----- Модифікую таблицю Equipment технологічними змінними в проекті ${ctprojectpath} ----------------`)
-  modifyequipments (newequipments, newequiprtpara);
-} 
-
 //добавлення або оновлення Equipment ВМ
 function actstoequipment () {
   //отримання мастерданих про ВМ
   logmsg (`----- Отримую інформацію про ВМ ----------------`)
   let newequipments = {};
   let newequiprtpara = {};
-  return
-
-  let typevarscheck = {AI: equiptypes.ACT_HMI, DI: equiptypes.DIVAR_HMI, DO: equiptypes.DOVAR_HMI, AO: equiptypes.AOVAR_HMI, VARBUF: equiptypes.VARBUF};
-  //перевірка на валідність 
-  if (typeof (typevarscheck.AI) === 'object') {
-    if (!equiptypes.AIVAR_HMI.paramsdef || !equiptypes.AIVAR_HMI.paramsdef.PFW || !equiptypes.AIVAR_HMI.paramsdef.PFW.ID) { 
-      typevarscheck.AI = undefined;
-      logmsg (`WRN: Не знайдено необхідний конфігураційний параметр PFW.ID для AIVAR_HMI!`);
-    } else {logmsg ('AIVAR_HMI - ok!')}
-  }else {
-    logmsg (`WRN: Не знайдено необхідні типи для AI зміна Equipment дя нього не буде відбуватися!`);
-  }
-  if (typeof (typevarscheck.DI) === 'object') {
-    if (!equiptypes.DIVAR_HMI.paramsdef || !equiptypes.DIVAR_HMI.paramsdef.PFW || !equiptypes.DIVAR_HMI.paramsdef.PFW.ID) { 
-      typevarscheck.DI = undefined;
-      logmsg (`WRN: Не знайдено необхідний конфігураційний параметр PFW.ID для DIVAR_HMI!`);
-    } else {logmsg ('DIVAR_HMI - ok!')}    
+  let typevarscheck = {};
+  //шукаємо усі типи HMI 
+  if (masteracts) {
+    typevarscheck = {ACTTR_CFG:equiptypes.ACTTR_CFG};
+    for (typename in masteracts.types){
+      if (typename.search('_HMI')>0) {
+        typevarscheck[typename] = equiptypes [typename];
+        //перевірка на валідність 
+        if (typeof (typevarscheck[typename]) === 'object') {
+          if (!equiptypes[typename].paramsdef || !equiptypes[typename].paramsdef.PFW || !equiptypes[typename].paramsdef.PFW.ID) { 
+            typevarscheck[typename] = undefined;
+            logmsg (`WRN: Не знайдено необхідний конфігураційний параметр PFW.ID для ${typename}!`);
+          } else {logmsg (`${typename} - ok!`)}
+        }else {
+          logmsg (`WRN: Не знайдено необхідні типи для ${typename} зміна Equipment дя нього не буде відбуватися!`);
+        }        
+      }
+    } 
   } else {
-    logmsg (`WRN: Не знайдено необхідні типи для DI зміна Equipment дя нього не буде відбуватися!`);
-  }
-  if (typeof (typevarscheck.DO) === 'object') {
-    if (!equiptypes.DOVAR_HMI.paramsdef || !equiptypes.DOVAR_HMI.paramsdef.PFW || !equiptypes.DOVAR_HMI.paramsdef.PFW.ID) { 
-      typevarscheck.DO = undefined;
-      logmsg (`WRN: Не знайдено необхідний конфігураційний параметр PFW.ID для DOVAR_HMI!`);
-    } else {logmsg ('DOVAR_HMI - ok!')}
-  } else {
-    logmsg (`WRN: Не знайдено необхідні типи для DO зміна Equipment дя нього не буде відбуватися!`);
-  }
-  if (typeof (typevarscheck.AO) === 'object') {
-    if (!equiptypes.AOVAR_HMI.paramsdef || !equiptypes.AOVAR_HMI.paramsdef.PFW || !equiptypes.AOVAR_HMI.paramsdef.PFW.ID) { 
-      typevarscheck.AO = undefined;
-      logmsg (`WRN: Не знайдено необхідний конфігураційний параметр PFW.ID для AOVAR_HMI!`);
-    } else {logmsg ('AOVAR_HMI - ok!')}
-  } else {
-    logmsg (`WRN: Не знайдено необхідні типи для AO зміна Equipment дя нього не буде відбуватися!`);
-  }
-  if (typeof (typevarscheck.VARBUF) === 'object') {
-    logmsg ('VARBUF - ok!')
-  } else {
-    logmsg (`WRN: Не знайдено необхідні типи для VARBUF зміна Equipment дя нього не буде відбуватися!`);
-  }              
-
-  let filetags = plcsourcepath + '\\' + "plc_tags.json";
-  if (mastertags) {
-    for (let tgname in mastertags.tags) {
+   logmsg ('Дані по ВМ не прочитані з фйлу експорту ПЛК, тому генерування неможливе!');
+  }  
+  if (masteracts) {
+    for (let actname in masteracts.acts) {
       let equipment; 
-      let tag = mastertags.tags[tgname];
-      if (!tag.plchmi) {
-        logmsg (`ERR: У змінній ${tgname} вдсутня структура plchmi! Змінну ігнорую!`);
+      let act = masteracts.acts[actname];
+      if (!act.plchmi) {
+        logmsg (`ERR: У змінній ${actname} вдсутня структура plchmi! Змінну ігнорую!`);
         continue
       }
-      if (!tag.plchmi.adr) {
-        logmsg (`ERR: У змінні ${tgname} вдсутня адреса в plchmi! Ставлю пусту!`);
-        tag.plchmi.adr = '';
+      if (!act.plchmi.adr) {
+        logmsg (`ERR: У змінні ${actname} вдсутня адреса в plchmi! Ставлю пусту!`);
+        act.plchmi.adr = '';
       }      
-      //AIVAR_HMI
-      if (tag.type === 'AI' && typevarscheck.AI) {
-        equipment = newequipments[tgname] = {};
-        equipment.type = 'AIVAR_HMI';
-        equipment.comment = tag.descr;
-        equipment.alias = tgname;
-        equipment.content = 'FP_AI'
+      if (act.type === act.type && typevarscheck[act.type]) {
+        equipment = newequipments[actname] = {};
+        equipment.type = act.type;
+        equipment.comment = act.descr;
+        equipment.alias = actname;
+        equipment.content = 'FP_' + act.type.replace('_HMI','');
         //параметри
-        paramsdef = JSON.parse(JSON.stringify(equiptypes.AIVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  tag.id;
+        //paramsdef = JSON.parse(JSON.stringify(equiptypes.AIVAR_HMI.paramsdef));  
+        paramsdef.PFW.ID =  act.id;
         equipment.param = equipparamtostring (paramsdef);
-        let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
+        let startadr = act.plchmi.adr.replace('%MW','').split('.')[0];
         equipment.custom1 = startadr;
-        let valuepara = tgname + '_PLCLimits'// Equipment runtime parameters
-        newequiprtpara[valuepara] = {name:'PLCLimits', value: valuepara};
+        //let valuepara = actname + '_PLCLimits'// Equipment runtime parameters
+        //newequiprtpara[valuepara] = {name:'PLCLimits', value: valuepara};
         //console.log (equipment);
       }
-      //DIVAR_HMI
-      if (tag.type === 'DI' && typevarscheck.DI) {
-        equipment = newequipments[tgname] = {};
-        equipment.type = 'DIVAR_HMI';
-        equipment.comment = tag.descr;
-        equipment.alias = tgname;
-        //параметри
-        paramsdef = JSON.parse(JSON.stringify(equiptypes.DIVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  tag.id;
-        equipment.param = equipparamtostring (paramsdef);
-        let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
-        equipment.custom1 = startadr;
-        //console.log (equipment);
-      }
-      //DOVAR_HMI
-      if (tag.type === 'DO' && typevarscheck.DO) {
-        equipment = newequipments[tgname] = {};
-        equipment.type = 'DOVAR_HMI';
-        equipment.comment = tag.descr;
-        equipment.alias = tgname;
-        //параметри
-        paramsdef = JSON.parse(JSON.stringify(equiptypes.DOVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  tag.id;
-        equipment.param = equipparamtostring (paramsdef);
-        let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
-        equipment.custom1 = startadr;
-        //console.log (equipment);
-      }
-      //AOVAR_HMI
-      if (tag.type === 'AO' && typevarscheck.AO) {
-        equipment = newequipments[tgname] = {};
-        equipment.type = 'AOVAR_HMI';
-        equipment.comment = tag.descr;
-        equipment.alias = tgname;
-        //параметри
-        paramsdef = JSON.parse(JSON.stringify(equiptypes.AOVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  tag.id;
-        equipment.param = equipparamtostring (paramsdef);
-        let startadr = tag.plchmi.adr.replace('%MW','').split('.')[0];
-        equipment.custom1 = startadr;
-        //console.log (equipment);
-      }            
-    } 
-    if (typevarscheck.VARBUF){
+    }
+    if (typevarscheck.ACTTR_CFG){
       let varbuf = mastertags.varbuf;
-      let equipment = newequipments.VARBUF = {};
-      equipment.type = 'VARBUF';
-      equipment.comment = 'Тег для буферу технологічної змінної';
-      equipment.alias = 'VARBUF';
+      let equipment = newequipments.ACTBUF = {};
+      equipment.type = 'ACTTR_CFG';
+      equipment.comment = 'Буфер для ВМ';
+      equipment.alias = 'ACTBUF';
       let startadr = varbuf.adr.replace('%MW','').split('.')[0];
       equipment.custom1 = startadr;      
     }
@@ -625,7 +453,6 @@ function actstoequipment () {
   logmsg (`----- Модифікую таблицю Equipment технологічними змінними в проекті ${ctprojectpath} ----------------`)
   modifyequipments (newequipments, newequiprtpara);
 } 
-
 //добавлення або оновлення Equipment по PLC, CH
 function modulstoequipment () {
   //отримання мастерданих про канали
@@ -688,7 +515,18 @@ function modulstoequipment () {
   modifyequipments (newequipments, newequiprtpara);
 } 
 
-
+//----------------------------------- Get/Put Citect info
+function getprojectsinfo (pathmasterdbf){
+  let connstr = "Provider=VFPOLEDB.1;Data Source=" + pathmasterdbf + ";Mask Password=False;Collating Sequence=MACHINE;CODEPAGE=1251;ANSI=True;"
+  let sqlcmd = "SELECT * FROM MASTER.DBF";
+  let records = runsql (connstr, sqlcmd, 'name');
+  return records
+}
+function getincludesprj () {
+  let sqlcmd = "SELECT * FROM include.DBF";
+  let records = runsql (connstrprj, sqlcmd, 'name');
+  return records
+} 
 function getequipmenttable(connstr, idx) {
   let sqlcmd = "SELECT * FROM equip.DBF";
   let records = runsql (connstr, sqlcmd, idx, 'equip');
@@ -711,13 +549,28 @@ function getequipparatable (connstr, idx) {
   let records = runsql (connstr, sqlcmd, idx, 'eqparam');
   return records
 }
-
 //добавляє нові або замінює існуючі equipment за полем TAGPREFIX
 function modifyequipments(newequipments, newequiprtpara) { 
   let oldequipments = equipinstancetable.tabbyidx;
+  let equipinstancetablebyname = getequipmenttable(connstrprj, 'name')
+  let oldequipmentsbyname = equipinstancetablebyname.tabbyidx;
   let oldequiprtpara = equiprtpara.tabbyidx;
   let sqlcmd = '';
   let tagprefix1;
+  let vals = '';
+  //кореневий еквіпмент, якщо його немає
+  if (!oldequipmentsbyname.debug) {
+    logmsg (`Не знайдено кореневий Equipment "debug" добавляю новий`);
+    for (let fieldname of equipinstancetablebyname.fields) {
+      if (fieldname === 'name') {
+        vals += `'debug',`     
+      } else {
+        vals += `'',`
+      }  
+    }
+    if (vals[vals.length-1] ===',') vals = vals.slice(0, -1);//убрати останню кому 
+    sqlcmd += `INSERT INTO equip VALUES (${vals});\n`;
+  }
   for (let tagprefix in newequipments){
     if (!tagprefix1) tagprefix1 = tagprefix;
     if (!newequipments[tagprefix].tagprefix) newequipments[tagprefix].tagprefix = tagprefix;   
@@ -745,7 +598,7 @@ function modifyequipments(newequipments, newequiprtpara) {
     } else {
       vals = '';
       logmsg (`Не знайдено запису для префіксу ${tagprefix} добавляю новий`);  
-      if (!newequipments[tagprefix].name) newequipments[tagprefix].name = 'temp.' + tagprefix;
+      if (!newequipments[tagprefix].name) newequipments[tagprefix].name = 'debug.' + tagprefix;
       for (let fieldname of equipinstancetable.fields) {
         if (!newequipments[tagprefix][fieldname]) {
           newequipments[tagprefix][fieldname] = '';
@@ -758,9 +611,11 @@ function modifyequipments(newequipments, newequiprtpara) {
     }
     //знайдено існуючі, треба модифікувати equipment name якщо вони відрізняються
     let rtparavalue = tagprefix+'_PLCLimits';
-    if (newequiprtpara[rtparavalue] && oldequiprtpara[rtparavalue] && newequiprtpara[rtparavalue].equip && oldequiprtpara[rtparavalue].equip !== newequiprtpara[rtparavalue].equip){
-      logmsg (`Змінилася назва quipment для префіксу ${tagprefix} з ${oldequiprtpara[tagprefix].name} на ${newequiprtpara[tagprefix].name} змінюю параметри виконання quipment`);    
-      sqlcmd += `UPDATE equip SET equip=` + newequiprtpara[rtparavalue].equip + ` WHERE value='${rtparavalue}';\n`;
+    //console.log (newequiprtpara[rtparavalue]);
+    //console.log (oldequiprtpara[rtparavalue]); 
+    if (newequiprtpara[rtparavalue] && oldequiprtpara[rtparavalue] &&  oldequiprtpara[rtparavalue].equip !== newequiprtpara[rtparavalue].equip){
+      logmsg (`Змінилася назва quipment для префіксу ${tagprefix} з ${oldequiprtpara[rtparavalue].equip} на ${newequipments[tagprefix].name} змінюю параметри виконання quipment`);    
+      sqlcmd += `UPDATE eqparam SET equip='${newequipments[tagprefix].name}' WHERE value='${rtparavalue}';\n`;
     } else if (newequipments[tagprefix].type === 'AIVAR_HMI' && !oldequiprtpara[rtparavalue]){//добавити нові
       logmsg (`Добавляю параметр виконання для ${newequipments[tagprefix].name}`);
       vals = '';
@@ -782,6 +637,7 @@ function modifyequipments(newequipments, newequiprtpara) {
   if (sqlcmd.length>0) runsql (connstrprj, sqlcmd, '' , 'meq_' + tagprefix1 );
 }
 
+//----------------------------------- SQL
 //запуска SQL запит і повертає records з інформацією про результат 
 function runsql (connstr, sqlcmd, idx, tabfilename = 'table'){
   let paras;
@@ -816,7 +672,6 @@ function runsql (connstr, sqlcmd, idx, tabfilename = 'table'){
   }
   return records  
 }
-
 //перетворює запарсену відповідь з VB в records
 function tabtoob (records, str, idx) {
   let headerraw =  str.split('HEADER{');
@@ -888,6 +743,7 @@ function getequipmenttypesinfo (projectpath){
   return equiptypes;
 }
 
+//---------------------------------- EqParameters
 function equipparamtostring (paramsdef){
   let param = '';
   //для param_list без назви групи
@@ -953,5 +809,5 @@ function stringtoequipparam (paramstring){
 }
 
 module.exports = {
-  create_equipment, create_hmi
+  create_equipment, create_hmi, create_varpages, create_mappages, create_actpages
 };

@@ -86,6 +86,15 @@ switch (process.argv[2]) {
     break;
   case "citectcreatehmi":
     citectcreatehmi();
+    break;
+  case "citectcreatevarhmi":
+    citectcreatevarhmi();
+    break;    
+  case "citectcreateplcmaphmi":
+    citectcreateplcmaphmi();
+    break;
+  case "citectcreateacthmi":
+    citectcreateacthmi();
     break;    
   case "":
     break;
@@ -105,6 +114,21 @@ function citectcreateeqip(){
 function citectcreatehmi(){
   seunparseall();
   citecttools.create_hmi(); 
+} 
+
+function citectcreatevarhmi(){
+  seunparseall();
+  citecttools.create_varpages(true); 
+} 
+
+function citectcreateplcmaphmi(){
+  seunparseall();
+  citecttools.create_mappages(true); 
+} 
+
+function citectcreateacthmi(){
+  seunparseall();
+  citecttools.create_actpages(true); 
 } 
 
 //паристь усі файли з tia
