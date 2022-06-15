@@ -747,8 +747,8 @@ END_FOR;\n\n`;
 let bodyNDICHS = `FOR i := 1 TO ${cfgchs.chs.statistic.ndicnt} DO
 (*на першому циклі ініціалізуємо змінні ID + CLSID*)
 IF PLC.STA_SCN1 THEN
-    CHDI[i].ID := INT_TO_UINT(i);
-    IF CHDI[i].CLSID = 0 THEN CHDI[i].CLSID := 16#0060;END_IF;
+    CHNDI[i].ID := INT_TO_UINT(i);
+    IF CHNDI[i].CLSID = 0 THEN CHNDI[i].CLSID := 16#0060;END_IF;
 END_IF;
 END_FOR;\n\n`;
 let bodyNDOCHS = `FOR i := 1 TO ${cfgchs.chs.statistic.ndocnt} DO
@@ -905,6 +905,7 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
     bodyDOVARS = "",
     bodyAIVARS = "",
     bodyAOVARS = "";
+  let bodyAIVARSadd = `(* Додаткові налаштування змінних для подальшого експортування в SCADA\n при ручній зміні дотрмуватися форматування \n {PFWEXPORTSTART}{"AIVARS":{\n`;
   let jsdivarsprog = {
     identProgram: {
       _attributes: { name: "A_divars", type: secttype, task: task },
@@ -948,6 +949,10 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
         break;
       case "AI":
         bodyAIVARS += `AIVARFN(CHCFG := CHAI[VARS.${tag.props.TAGNAME}.CHID], AIVARCFG := VARS.${tag.props.TAGNAME}, AIVARHMI := AIH.${tag.props.TAGNAME}, VARBUF := VARBUF, PLCCFG := PLC, CHAI := CHAI); (*${tag.props.DESCRIPTION}*) \n`;
+        let UNIT = tag.props.UNIT || '';
+        let FRMT = tag.props.FRMT || '';
+        let SCALE = tag.props.SCALE || '';
+        bodyAIVARSadd+=`"${tag.props.TAGNAME}":{"UNIT":"${UNIT}", "FRMT": "${FRMT}", "SCALE":"${SCALE}"},\n`;
         break;
       case "AO":
         bodyAOVARS += `AOVARFN(CHCFG := CHAO[VARS.${tag.props.TAGNAME}.CHID], AOVARCFG := VARS.${tag.props.TAGNAME}, AOVARHMI := AOH.${tag.props.TAGNAME}, VARBUF := VARBUF, PLCCFG := PLC, CHAO := CHAO); (*${tag.props.DESCRIPTION}*) \n`;
@@ -976,9 +981,12 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
     "(* Ця секція згенерована автоматично PACFramework Tools " +
     new Date().toLocaleString() +
     "*)\n";
+  
+  bodyAIVARSadd += "}}{PFWEXPORTEND}*)\n";
+
   jsdivarsprog.STSource = progdescr + bodyDIVARS;
   jsdovarsprog.STSource = progdescr + bodyDOVARS;
-  jsaivarsprog.STSource = progdescr + bodyAIVARS;
+  jsaivarsprog.STSource = progdescr + bodyAIVARS + bodyAIVARSadd;
   jsaovarsprog.STSource = progdescr + bodyAOVARS;
   
   return { jsdivarsprog, jsdovarsprog, jsaivarsprog, jsaovarsprog };

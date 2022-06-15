@@ -22,6 +22,7 @@ let pathmasterdbf = config.citecttools.pathmasterdbf;
 let ctprojectname = config.citecttools.ctprojectname;
 let pfwincludename = config.citecttools.pfwincludename; 
 let cntelemetspergenie = config.citecttools.cntelemetspergenie; 
+let cntactspergenie = config.citecttools.cntactspergenie
 let ctprojectpath;
 let pfwincludepath;
 let plcsourcepath = config.citecttools.plcsourcepath;//файли типу plc_tags.json таа інші
@@ -52,6 +53,15 @@ function create_equipment(){
   logmsg (`Equipment добавлені. Не забудьте обновити усі звязані елементом через Update Equipment!!! `);
   writetolog(1);  
 }
+
+function create_actequipment(){
+  if (init()===1) {
+    actstoequipment();
+  }
+  logmsg (`Equipment добавлені. Не забудьте обновити усі звязані елементом через Update Equipment!!! `);
+  writetolog(1);  
+}
+
 function create_hmi(){
   if (init()===1) {
     create_mappages ();  
@@ -240,11 +250,36 @@ function create_mappages(initenbl=false){
     } 
   }
 }
-function create_actpages() {
+function create_actpages(initenbl=false) {
   if (initenbl===true) {
     if (init()!==1) return 
   }
-  return
+  let txtacttypes = {};
+  if (masteracts) {
+    //для кожного типу перелік ВМ
+    for (acttypename in masteracts.types) {
+      if (acttypename.search('_HMI')>0) {
+        txtacttypes[acttypename] = '';
+      }
+    }
+    for (let actname in masteracts.acts) {
+      let act = masteracts.acts[actname];
+      let acttypename = act.plchmi.type;  
+      if ((txtacttypes[acttypename]).length>1) txtacttypes[acttypename]+= ','; 
+      if (typeof txtacttypes[acttypename] !== 'undefined') txtacttypes[acttypename]+= actname; 
+    }
+    let paras;
+    logmsg ("-----  Створюю джини для ВМ, зачекайте, це може зайняти кілька хвилин ...");
+    for (acttype in txtacttypes) {
+      if (txtacttypes[acttype].length>0) {
+        paras = ['ctgraphbldrtools.vbs', 'create_actpages', ctprojectname, pfwincludename, txtacttypes[acttype], cntactspergenie, acttype.replace('_HMI', ''), acttype ];
+        let vbs = child_process.spawnSync('cscript.exe' , paras, {stdio: ['pipe', 'pipe', process.stderr]});//{ stdio: [process.stdin, process.stdout, process.stderr] }
+        str = iconv.decode(Buffer.from(vbs.stdout), 'win1251').split('----------');
+        if (str.length>0) console.log (str[1]);        
+      }
+    }
+    
+  }
 }
 
 //------------------------------------ Equipments
@@ -409,7 +444,8 @@ function actstoequipment () {
     } 
   } else {
    logmsg ('Дані по ВМ не прочитані з фйлу експорту ПЛК, тому генерування неможливе!');
-  }  
+  }
+  console.log (typevarscheck);  
   if (masteracts) {
     for (let actname in masteracts.acts) {
       let equipment; 
@@ -421,16 +457,16 @@ function actstoequipment () {
       if (!act.plchmi.adr) {
         logmsg (`ERR: У змінні ${actname} вдсутня адреса в plchmi! Ставлю пусту!`);
         act.plchmi.adr = '';
-      }      
-      if (act.type === act.type && typevarscheck[act.type]) {
+      }    
+      if (act.plchmi.type === act.plchmi.type && typevarscheck[act.plchmi.type]) {
         equipment = newequipments[actname] = {};
-        equipment.type = act.type;
+        equipment.type = act.plchmi.type;
         equipment.comment = act.descr;
         equipment.alias = actname;
-        equipment.content = 'FP_' + act.type.replace('_HMI','');
+        equipment.content = 'FP_' + act.plchmi.type.replace('_HMI','');
         //параметри
-        //paramsdef = JSON.parse(JSON.stringify(equiptypes.AIVAR_HMI.paramsdef));  
-        paramsdef.PFW.ID =  act.id;
+        paramsdef = JSON.parse(JSON.stringify(equiptypes[act.plchmi.type].paramsdef));  
+        paramsdef.PFW.ID =  act.plchmi.id;
         equipment.param = equipparamtostring (paramsdef);
         let startadr = act.plchmi.adr.replace('%MW','').split('.')[0];
         equipment.custom1 = startadr;
@@ -809,5 +845,5 @@ function stringtoequipparam (paramstring){
 }
 
 module.exports = {
-  create_equipment, create_hmi, create_varpages, create_mappages, create_actpages
+  create_equipment, create_hmi, create_varpages, create_mappages, create_actpages, create_actequipment
 };

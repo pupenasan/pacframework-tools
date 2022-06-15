@@ -91,6 +91,13 @@ node C:\pacfwtools\node_modules\pacframework-tools\index tiaparseall
 - tiaparseall - отримання майстерданих (проектних даних) з TIA portal та перетворення їх в JSON з оновленням в CouchDB
 - wincccreatealm - створення списку тривог в форматі CSV для WinCC Prof
 - updateui2 - створення наповнення графічного інтерфейсу для PACFramework IoT Gateway 
+-  citectcreateeqip - створення всього обладнання з експортного варіанту Unity
+- citectcreateacteqip - створення обладнання ВМ з експортного варіанту Unity
+- citectcreatehmi - створення джинів для всього обладнання каркасу
+- citectcreatevarhmi -  створення джинів налагодження для технологічних змінних
+- citectcreateplcmaphmi - створення джинів налагодження для карти ПЛК
+- citectcreateacthmi - створення джинів налагодження для ВМ
+- 
 
 ## Перелік утиліт для програміста
 

@@ -84,6 +84,9 @@ switch (process.argv[2]) {
   case "citectcreateeqip":
     citectcreateeqip();
     break;
+  case "citectcreateacteqip":
+    citectcreateacteqip();
+    break;      
   case "citectcreatehmi":
     citectcreatehmi();
     break;
@@ -110,6 +113,11 @@ function citectcreateeqip(){
   seunparseall();
   citecttools.create_equipment();
 } 
+
+function citectcreateacteqip(){
+  seunparseall();
+  citecttools.create_actequipment();
+}
 
 function citectcreatehmi(){
   seunparseall();

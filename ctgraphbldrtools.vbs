@@ -12,6 +12,9 @@ end if
 if command="create_mappage" then 
   create_mappage WScript.Arguments(1), WScript.Arguments(2), WScript.Arguments(3), WScript.Arguments(4), WScript.Arguments(5)
 end if
+if command="create_actpages" then 
+  create_actpages WScript.Arguments(1), WScript.Arguments(2), WScript.Arguments(3), WScript.Arguments(4), WScript.Arguments(5), WScript.Arguments(6)
+end if
 
 
 function create_varpages (ctprojectname, pfwincludename, dis, dos, ais, aos, cfgparas)
@@ -38,13 +41,24 @@ function create_varpages (ctprojectname, pfwincludename, dis, dos, ais, aos, cfg
   On Error Resume Next
   Err.Clear
   
-  create_varpage ctprojectname, pfwincludename, "AIVAR", "AIVAR_HMI", arais, aicnt
-  create_varpage ctprojectname, pfwincludename, "DIVAR", "DIVAR_HMI", ardis, dicnt
-  create_varpage ctprojectname, pfwincludename, "DOVAR", "DOVAR_HMI", ardos, docnt
-  create_varpage ctprojectname, pfwincludename, "AOVAR", "AOVAR_HMI", araos, aocnt
+  create_varpage ctprojectname, pfwincludename, "AIVAR", "AIVAR_HMI", arais, aicnt, "Tag"
+  create_varpage ctprojectname, pfwincludename, "DIVAR", "DIVAR_HMI", ardis, dicnt, "Tag"
+  create_varpage ctprojectname, pfwincludename, "DOVAR", "DOVAR_HMI", ardos, docnt, "Tag"
+  create_varpage ctprojectname, pfwincludename, "AOVAR", "AOVAR_HMI", araos, aocnt, "Tag"
 end function 
 
-function create_varpage (ctprojectname, pfwincludename, pagebasename, typename, artags, cnt) 
+function create_actpages (ctprojectname, pfwincludename, acts, actcnt, pagebasename, typename)
+  dim aracts 
+  dim prselected
+  aracts = Split(acts,",") 
+  arcfgparas = Split(cfgparas,",")
+  On Error Resume Next
+  Err.Clear 
+  create_varpage ctprojectname, pfwincludename, pagebasename, typename, aracts, actcnt, "ACT"
+end function 
+
+
+function create_varpage (ctprojectname, pfwincludename, pagebasename, typename, artags, cnt, substitution) 
   dim j
   strtan = 10000 'AN для першого розміщення обєкту 
   pageidx = 1
@@ -64,7 +78,7 @@ function create_varpage (ctprojectname, pfwincludename, pagebasename, typename, 
     end if
     
     GraphicsBuilder.LibraryObjectPlaceEx ctprojectname, "pacframework", typename, 1, true, x, y
-    GraphicsBuilder.LibraryObjectPutProperty "Tag", artags(i)
+    GraphicsBuilder.LibraryObjectPutProperty substitution, artags(i)
     'WScript.Echo artags(i)
     if i = lbound(artags) then
       width = GraphicsBuilder.AttributeExtentX - x
@@ -83,7 +97,7 @@ function create_varpage (ctprojectname, pfwincludename, pagebasename, typename, 
     end if  
   next 
   if j<>0 then 
-    WScript.Echo  "========================"
+    WScript.Echo "Genie " & pagebasename & pageidx & " saved"
     GraphicsBuilder.PageSaveAsEx ctprojectname, "PACFramework", pagebasename & pageidx
     GraphicsBuilder.PageClose
   end if  
