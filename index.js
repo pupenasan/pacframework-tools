@@ -81,9 +81,16 @@ switch (process.argv[2]) {
   case "wincccreatealm":
     mastertags_to_almlist();
     masteracts_to_almlist();
+    break
   case "citectcreateeqip":
     citectcreateeqip();
     break;
+  case "citectcreatevareqip":
+    citectcreatevareqip();
+    break;
+  case "citectcreatemoduleeqip":
+    citectcreatemoduleeqip();
+    break;          
   case "citectcreateacteqip":
     citectcreateacteqip();
     break;      
@@ -113,6 +120,16 @@ function citectcreateeqip(){
   seunparseall();
   citecttools.create_equipment();
 } 
+
+function citectcreatevareqip(){
+  seunparseall();
+  citecttools.create_varequipment();
+}
+
+function citectcreatemoduleeqip(){
+  seunparseall();
+  citecttools.create_modulequipment();
+}
 
 function citectcreateacteqip(){
   seunparseall();

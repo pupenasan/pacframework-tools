@@ -949,10 +949,10 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
         break;
       case "AI":
         bodyAIVARS += `AIVARFN(CHCFG := CHAI[VARS.${tag.props.TAGNAME}.CHID], AIVARCFG := VARS.${tag.props.TAGNAME}, AIVARHMI := AIH.${tag.props.TAGNAME}, VARBUF := VARBUF, PLCCFG := PLC, CHAI := CHAI); (*${tag.props.DESCRIPTION}*) \n`;
-        let UNIT = tag.props.UNIT || '';
-        let FRMT = tag.props.FRMT || '';
-        let SCALE = tag.props.SCALE || '';
-        bodyAIVARSadd+=`"${tag.props.TAGNAME}":{"UNIT":"${UNIT}", "FRMT": "${FRMT}", "SCALE":"${SCALE}"},\n`;
+        let eu = tag.props.UNIT || '';
+        let frmt = tag.props.FRMT || '';
+        let scale = tag.props.SCALE || '';
+        bodyAIVARSadd+=`"${tag.props.TAGNAME}":{"eu":"${eu}", "frmt": "${frmt}", "scale":"${scale}"},\n`;
         break;
       case "AO":
         bodyAOVARS += `AOVARFN(CHCFG := CHAO[VARS.${tag.props.TAGNAME}.CHID], AOVARCFG := VARS.${tag.props.TAGNAME}, AOVARHMI := AOH.${tag.props.TAGNAME}, VARBUF := VARBUF, PLCCFG := PLC, CHAO := CHAO); (*${tag.props.DESCRIPTION}*) \n`;
@@ -982,6 +982,7 @@ function createiovarsprogram(cfgtags, secttype = "SR", task = "MAST") {
     new Date().toLocaleString() +
     "*)\n";
   
+  bodyAIVARSadd = bodyAIVARSadd.slice(0, -2);//забираємо останню кому
   bodyAIVARSadd += "}}{PFWEXPORTEND}*)\n";
 
   jsdivarsprog.STSource = progdescr + bodyDIVARS;

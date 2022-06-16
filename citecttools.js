@@ -54,11 +54,27 @@ function create_equipment(){
   writetolog(1);  
 }
 
+function create_modulequipment(){
+  if (init()===1) {
+    modulstoequipment();
+  }
+  logmsg (`Equipment для модуля добавлені. Не забудьте обновити усі звязані елементом через Update Equipment!!! `);
+  writetolog(1);  
+}
+
+function create_varequipment(){
+  if (init()===1) {
+    tagstoequipment();
+  }
+  logmsg (`Equipment для змінних добавлені. Не забудьте обновити усі звязані елементом через Update Equipment!!! `);
+  writetolog(1);  
+}
+
 function create_actequipment(){
   if (init()===1) {
     actstoequipment();
   }
-  logmsg (`Equipment добавлені. Не забудьте обновити усі звязані елементом через Update Equipment!!! `);
+  logmsg (`Equipment для ВМ добавлені. Не забудьте обновити усі звязані елементом через Update Equipment!!! `);
   writetolog(1);  
 }
 
@@ -352,6 +368,9 @@ function tagstoequipment () {
         //параметри
         paramsdef = JSON.parse(JSON.stringify(equiptypes.AIVAR_HMI.paramsdef));  
         paramsdef.PFW.ID =  tag.id;
+        paramsdef.PFW.EU = tag.eu || '';
+        paramsdef.PFW.FRMT = ((tag.frmt) || '').replace(/s/g,'#').replace(/[0-9]/g,'#'); 
+
         paramsdef.Range.L = tag.loeng || 0;
         paramsdef.Range.H = tag.hieng || 100;
         equipment.param = equipparamtostring (paramsdef);
@@ -445,7 +464,7 @@ function actstoequipment () {
   } else {
    logmsg ('Дані по ВМ не прочитані з фйлу експорту ПЛК, тому генерування неможливе!');
   }
-  console.log (typevarscheck);  
+  //console.log (typevarscheck);  
   if (masteracts) {
     for (let actname in masteracts.acts) {
       let equipment; 
@@ -845,5 +864,5 @@ function stringtoequipparam (paramstring){
 }
 
 module.exports = {
-  create_equipment, create_hmi, create_varpages, create_mappages, create_actpages, create_actequipment
+  create_equipment, create_hmi, create_varpages, create_mappages, create_actpages, create_actequipment, create_varequipment, create_modulequipment
 };

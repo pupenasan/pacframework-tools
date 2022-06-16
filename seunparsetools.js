@@ -6,6 +6,7 @@ const xmlparser = require("xml-js"); //https://www.npmjs.com/package/xml-js
 const masterdatatools = require("./masterdatatools.js");
 const ini = require("ini"); //https://github.com/npm/ini#readme
 const config = ini.parse(fs.readFileSync(global.inipath, "utf-8"));
+const lodash = require('lodash');
 
 const opts = {
   logpath: "log",
@@ -34,6 +35,8 @@ const opts = {
 const logmsg = masterdatatools.logmsg;
 const writetolog = masterdatatools.writetolog;
 const syncobs = masterdatatools.syncobs;
+
+let progcodes = {};
 
 function xefparseall () {
   masterdatatools.opts.logfile = "seunparsetools.log";
@@ -73,6 +76,11 @@ function xefparseall () {
     plcblocks[varblockname] = variable;
   }
   logmsg("Усі змінні з фвйлу отримані, перетворюю в базу даних...");
+  //отримання усіх кодів програм
+  for (let prog of jscontent.program){
+    let sectname = prog.identProgram._attributes.name;
+    progcodes[sectname] = prog.STSource._text;
+  }
   /*
   //назви типів 
   let typeblocknames = {
@@ -83,7 +91,7 @@ function xefparseall () {
     PLC:"PLC", MODULES:"MODULES", SUBMODULE:"SUBMODULE", CH_BUF:"CH_BUF", ACT:"ACT", ACTH:"ACTH", ACTBUF:"ACTBUF"
   };*/  
   
-  
+
   logmsg("------------------ Формування тегів");
   let plctags = {
     types:{}, tags:{}, ids: {}, twinsrepo: {}, memmap: {}, varbuf: {}
@@ -142,6 +150,9 @@ function xefparseall () {
   let mastertags = {};
   //приведення до типу масив
   let varblocknms = (typeof varblocknames.VARS === 'object') ? varblocknames.VARS : [varblocknames.VARS];
+  let metavarsinfo = {};
+  getmetadatafromcode (progcodes['A_aivars'],metavarsinfo);//отримаємо додаткову інформацію про AIVARS з програми
+  let metaaivarsinfo = metavarsinfo.AIVARS || {};
   for (let varblocknm of varblocknms) {//перебираємо усі VAR
     let typename = plcblocks[varblocknm]._attributes.typeName;
     let typeblock = alltypes[typename];
@@ -166,6 +177,10 @@ function xefparseall () {
       }
       if (!mastertags [tagname].descr) {
         mastertags [tagname].descr = typeblock[tagname].descr
+      }
+      //приєднання метаданих
+      if (metaaivarsinfo[tagname]) {
+        lodash.merge (mastertags [tagname],metaaivarsinfo[tagname]) 
       }
       let plccfg = mastertags [tagname].plccfg = {type:plctpname};
       //заповнюємо поля з типу
@@ -587,6 +602,19 @@ function addaddr(type, adrob) {
   }*/
   adrob.byte += addbyte;
   adrob.word += addword;
+}
+
+function getmetadatafromcode (code, ob){
+  const markerstart = '{PFWEXPORTSTART}';
+  const markerend = '{PFWEXPORTEND}';
+  const strt = code.search (markerstart);
+  const end = code.search (markerend);
+  let metaob = {};
+  if (strt>0 && end>0) {
+    metainfo = code.substring (strt + markerstart.length,end);
+    metaob = JSON.parse (metainfo);
+  } 
+  lodash.merge (ob, metaob);
 }
 
 module.exports = {
