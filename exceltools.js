@@ -1,3 +1,24 @@
+/* Утиліти для роботи з Excel
+getcfgtags_fromxls (filexls) => cfgtags - отримання базової інформації про теги закладка в закладці tags з файлу з назвою filexls
+  tags{TAGNAME}:
+    id: колонка ID 
+    tagname: колонка TAGNAME
+    description: колонка DESCRIPTION 
+    props: усі поля (заголовки колонок) передаються як властивості даного обєкту
+    state: valid/inv_noname/inv_duplname/inv_name/inv_id/inv_duplid
+  ids:{id} - валідні tagname за id 
+  invalids:{id} - невалідні tagname за id 
+  statistic:{AO:cnt ....} - кількість кожного типу тегів
+  memmap{}: налаштування адрес для змінних, якщо вони повинні записуватися в програму ПЛК, береться з getothercfg_fromxls()
+getacttypes_fromxls (filexls) => acttrtypes  - отримання інформації про типи acttps в закладці acts з файлу з назвою filexls
+getchtypes_fromxls (filexls) => chtypes - отримання інформації про типи каналів в закладці chtps з файлу з назвою filexls
+getothercfg_fromxls (filexls) => cfgopts - отримання інформації про інші налаштування в закладці other з файлу з назвою filexls
+  cfgopts включає обєкти що сформовані за правилом: 
+    SECTION - назва JSON файлу (tags, chs, chmap, acts),	
+    PARA - обєкт у файлі в форматі вкладеності ob1.ob2.ob3	
+    VALUE - значення обєкту
+checktagname (tagname) => true (якщо ок) - перевірка на коректність назв (крилиця, недозволені символи в іменах)
+*/
 const xlsx = require('xlsx');
 const fs = require ('fs');
 const path = require ('path');
@@ -141,7 +162,7 @@ function getchtypes_fromxls (filexls) {
   return (chtypes);
 }
 
-//отримання інформації про типи каналів
+//отримання інформації про інші налаштування в форматі SECTION	PARA	VALUE
 function getothercfg_fromxls (filexls) {
   let cfgopts = {};
   const wb = xlsx.readFile(filexls);
@@ -165,7 +186,6 @@ function getothercfg_fromxls (filexls) {
   //console.log (cfgopts); process.exit();
   return (cfgopts);
 }
-
 
 //переірка на коректність назв
 function checktagname (tagname) {

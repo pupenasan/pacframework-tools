@@ -1,3 +1,16 @@
+/* Загальні, незалежні від бренду та продукту утиліти роботу з майстерданими
+tagsdif (plctags, cfgtags) => difob - порівняння мастердат в plctags та cfgtags, наразі не використовується
+chsmap_fromplc (plchs, plctags) => chsmap - формує меппінг каналів і змінних з даних, витягнутих з програми plc
+chsmap_fromcfgfn cfgchs, cfgtags, chstype) => cfgchmap - формує канали, меппінг каналів і змінних з даних CFG
+iomapplcform_togenform (chs) формує загальну форму по формі ПЛК, моифікує chs
+chsmapfn (chsmap, chdis, dimap, 'di') => 
+iomaptoplcform (cfgchs) - перетворення даних IOMAP в форму PACFramework, моифікує cfgchs
+getactrtsinfo (cfgtags, cfgtypes) - отримує обєкт-список виконавчих механізмів за мастердата тегами та означеними типами 
+attrlinktag (cfgacts, act, ioname, withoutlink = false) - прив'язка act.io[ioname] до привязаних тегів act за шаблонами типу, якщо withoutlink=false, повертає true якщо знайдено
+syncobs (masterob, newob, deleteoldfields = 0) - синхронізація нового об'єкту з мастерданими, наразі не використовується 
+logmsg (msg, toconsole=1) - виведення повідомлення msg на консоль (при toconsole=1) та в msglog
+writetolog (createnew = 0) - виведення msglog в файл, при createnew = 1 - створюється новий файл, перезаписуючи старий 
+*/
 const userdir = process.env.userprofile + '/pacframeworktools';
 const path = require ('path');
 const fs = require ('fs');

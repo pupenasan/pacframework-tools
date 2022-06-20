@@ -4,6 +4,7 @@ result
 log
 reports
 totia
+*.pptx
 
 # Logs
 logs
@@ -20,6 +21,7 @@ jspm_packages/
 # dotenv environment variables file
 .env
 .env.test
+
 
 
 

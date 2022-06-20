@@ -37,6 +37,21 @@ node C:\pacfwtools\node_modules\pacframework-tools\index
 explorer \n, "%Userprofile%\pacframeworktools\"
 ```
 
+## Перевірка встановленої версії та наявність нової версії
+
+Для перевірки номеру версії треба з командного вікна перейти в директорію застосунку запустити команду перевірки версії:
+
+```bash
+cd C:\pacframeworktools
+npm list
+```
+
+Для перевірки номеру найсвіжішої доступної версії треба з командного рядка набрати команду
+
+```bash
+npm view pacframework-tools version
+```
+
 ## Оновлення
 
 Для оновлення до останньої версії треба з командного вікна перейти в директорію застосунку запустити команду для інсталювання застосунку, який поставить останню версію pacframework-tools:
@@ -45,6 +60,8 @@ explorer \n, "%Userprofile%\pacframeworktools\"
 cd C:\pacframeworktools
 npm install pacframework-tools@latest
 ```
+
+Слід зауважити, що при оновленні версії, необхідно також проконтролювати правильність заповнення `config.ini` по `config_sample.ini`, так як повторний заруск не перезаписує існуючий файл ini.
 
 ## Загальні принципи використання
 

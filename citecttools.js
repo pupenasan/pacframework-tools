@@ -17,32 +17,24 @@ const iconv = require('iconv-lite');
 const logmsg = masterdatatools.logmsg;
 const writetolog = masterdatatools.writetolog;
 const syncobs = masterdatatools.syncobs;
-
-let pathmasterdbf = config.citecttools.pathmasterdbf;
-let ctprojectname = config.citecttools.ctprojectname;
-let pfwincludename = config.citecttools.pfwincludename; 
-let cntelemetspergenie = config.citecttools.cntelemetspergenie; 
-let cntactspergenie = config.citecttools.cntactspergenie
-let ctprojectpath;
-let pfwincludepath;
-let plcsourcepath = config.citecttools.plcsourcepath;//файли типу plc_tags.json таа інші
-let iodevicename = config.citecttools.iodevicename; 
-
-let connstrprj;
-let connstrpfw; 
-let equiptypes;
-let equiptable;
-let equiprtpara;
-let equipinstancetable;
-let mastertags;
-let masterchs;
-let masterplcs;
-
 const sqllogdir = global.userdir + '\\sql'; 
-if  (!fs.existsSync(sqllogdir)) {
-  fs.mkdirSync (sqllogdir);
-  console.log ('Створив директорію ' + sqllogdir);  
-} 
+
+let ctprojectpath, pfwincludepath, pathmasterdbf, ctprojectname, pfwincludename, cntelemetspergenie, cntactspergenie, plcsourcepath, iodevicename;
+let connstrprj, connstrpfw, equiptypes, equiptable, equiprtpara, equipinstancetable, mastertags, masterchs, masterplcs;
+if (config.citecttools) {
+  pathmasterdbf = config.citecttools.pathmasterdbf;
+  ctprojectname = config.citecttools.ctprojectname;
+  pfwincludename = config.citecttools.pfwincludename; 
+  cntelemetspergenie = config.citecttools.cntelemetspergenie; 
+  cntactspergenie = config.citecttools.cntactspergenie  
+  plcsourcepath = config.citecttools.plcsourcepath;//файли типу plc_tags.json таа інші
+  iodevicename = config.citecttools.iodevicename; 
+  if  (!fs.existsSync(sqllogdir)) {
+    fs.mkdirSync (sqllogdir);
+    console.log ('Створив директорію ' + sqllogdir);  
+  }   
+}
+
 
 function create_equipment(){
   if (init()===1) {
@@ -82,10 +74,13 @@ function create_hmi(){
   if (init()===1) {
     create_mappages ();  
     create_varpages ();
+    create_actpages ();
   }
   writetolog(1);    
 }
 function init(){
+  if (!config.citecttools) logmsg (`ERR: У файлі ini відсутній розділ citecttools, утиліти citect працювати не будуть!`);
+
   masterdatatools.opts.logfile = "seunparsetools.log";
   masterdatatools.opts.source = config.citecttools.pathsource;
   masterdatatools.opts.logpath = config.citecttools.pathlog; 
