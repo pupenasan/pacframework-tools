@@ -490,12 +490,12 @@ function actstoequipment () {
       }
     }
     if (typevarscheck.ACTTR_CFG){
-      let varbuf = mastertags.varbuf;
+      let actbuf = masteracts.actbuf;
       let equipment = newequipments.ACTBUF = {};
       equipment.type = 'ACTTR_CFG';
       equipment.comment = 'Буфер для ВМ';
       equipment.alias = 'ACTBUF';
-      let startadr = varbuf.adr.replace('%MW','').split('.')[0];
+      let startadr = actbuf.adr.replace('%MW','').split('.')[0];
       equipment.custom1 = startadr;      
     }
   }
