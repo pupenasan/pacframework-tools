@@ -49,6 +49,7 @@ let cfgopts;
 couchtools.opts.user = process.env.COUCH_USER;
 couchtools.opts.password = process.env.COUCH_PASS;
 let twinname = config.general.twinname;
+let seunplcscfg;
 
 switch (process.argv[2]) {
   case "getcfgfromxls":
@@ -83,17 +84,14 @@ switch (process.argv[2]) {
     masteracts_to_almlist();
     break
   case "citectcreateeqip":
-    citectcreateeqip();
-    break;
+    ;
   case "citectcreatevareqip":
-    citectcreatevareqip();
-    break;
+    ;
   case "citectcreatemoduleeqip":
-    citectcreatemoduleeqip();
-    break;          
+    ;
   case "citectcreateacteqip":
-    citectcreateacteqip();
-    break;      
+    citectcreateeqip();
+    break;     
   case "citectcreatehmi":
     citectcreatehmi();
     break;
@@ -117,24 +115,47 @@ switch (process.argv[2]) {
 }
 
 function citectcreateeqip(){
-  seunparseall();
-  citecttools.create_equipment();
+  if (!config.citecttools) {
+    console.log ('Не знайдений розділ конфігурації Citect');
+    return  
+  }
+  let plcname = process.argv[3];
+  let xeffiles = []; 
+  if (plcname) {
+    if (config.citecttools[plcname] && config.citecttools[plcname].xeffile) {
+      xeffiles = [config.citecttools[plcname].xeffile];
+    } else {
+      console.log (`Не знайдений розділ конфігурації Citect для ${plcname} або відсутній для нього параметр xeffile`);
+      return  
+    }
+  } else {
+    for (let plcname in config.citecttools) {
+      if (config.citecttools[plcname] && config.citecttools[plcname].xeffile) {
+        xeffiles.push (config.citecttools[plcname].xeffile);
+      }
+    }
+  }
+  seunparsetools.opts.pathsource = config.citecttools.plcsourcepath;
+  for (let xeffile of xeffiles) {
+    logmsg (`Починаю парсити ${xeffile} ...`);
+    seunparsetools.opts.xeffile = xeffile;
+    seunparsetools.xefparseall();
+    switch (process.argv[2]) {
+      case "citectcreateeqip":
+        citecttools.create_equipment();
+        break
+      case "citectcreatevareqip":
+        citecttools.create_varequipment();
+        break
+      case "citectcreatemoduleeqip":
+        citecttools.create_modulequipment();
+        break
+      case "citectcreateacteqip":
+        citecttools.create_actequipment();
+        break
+    }
+  }   
 } 
-
-function citectcreatevareqip(){
-  seunparseall();
-  citecttools.create_varequipment();
-}
-
-function citectcreatemoduleeqip(){
-  seunparseall();
-  citecttools.create_modulequipment();
-}
-
-function citectcreateacteqip(){
-  seunparseall();
-  citecttools.create_actequipment();
-}
 
 function citectcreatehmi(){
   seunparseall();
@@ -162,7 +183,7 @@ async function tiaparseall() {
   await couchtools.doc_toCouchdb(plcmasterdata, twinname, "plcmasterdata");
 }
 
-//паристь усі файли з tia
+//парсить усі файли з Unity PRO
 async function seunparseall() {
   let plcmasterdata = seunparsetools.xefparseall();
   //await couchtools.doc_toCouchdb(plcmasterdata, twinname, "plcmasterdata");

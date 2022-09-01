@@ -27,8 +27,8 @@ if (config.citecttools) {
   pfwincludename = config.citecttools.pfwincludename; 
   cntelemetspergenie = config.citecttools.cntelemetspergenie; 
   cntactspergenie = config.citecttools.cntactspergenie  
-  plcsourcepath = config.citecttools.plcsourcepath;//файли типу plc_tags.json таа інші
-  iodevicename = config.citecttools.iodevicename; 
+  plcsourcepath = config.citecttools.pathresult;//файли типу plc_tags.json таа інші
+  //iodevicename = config.citecttools.iodevicename; 
   if  (!fs.existsSync(sqllogdir)) {
     fs.mkdirSync (sqllogdir);
     console.log ('Створив директорію ' + sqllogdir);  
@@ -39,8 +39,8 @@ if (config.citecttools) {
 function create_equipment(){
   if (init()===1) {
     modulstoequipment();
-    tagstoequipment();
     actstoequipment();
+    tagstoequipment();
   }
   logmsg (`Equipment добавлені. Не забудьте обновити усі звязані елементом через Update Equipment!!! `);
   writetolog(1);  
@@ -63,6 +63,7 @@ function create_varequipment(){
 }
 
 function create_actequipment(){
+  logmsg (`Починаю створювати Equipment для ВМ`);
   if (init()===1) {
     actstoequipment();
   }
@@ -147,8 +148,8 @@ function init(){
     mastertags = JSON.parse(content);
     logmsg (`Теги прочитано.`);
   } else {
-    logmsg (`ERR: Не вдалося прочитати базу даних тегів з ${filetags}!`);
-    return
+    logmsg (`ERR: Не вдалося прочитати базу даних тегів з ${filetags}! Невдале завершення!`);
+    process.exit()
   }
   let filechs = plcsourcepath + '\\' + "plc_chs.json";
   if (fs.existsSync(filechs)) {

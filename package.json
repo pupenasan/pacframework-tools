@@ -1,6 +1,6 @@
 {
   "name": "pacframework-tools",
-  "version": "0.1.31",
+  "version": "0.1.32",
   "description": "tools for PACFramework ",
   "main": "index.js",
   "scripts": {

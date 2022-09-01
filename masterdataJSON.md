@@ -38,7 +38,7 @@ tagname: ім'я технологічної змінної
 
 description: опис технологічної змінної 
 
-props: усі властивості для тегу, перелік полів вказаний в [описі формату даних в Excel xlsx](masredataxls.md) 
+props: усі властивості для тегу, перелік полів вказаний в [описі формату даних в Excel xlsx](masterdataxls.md) 
 
 state: valid/inv_noname/inv_duplname/inv_name/inv_id/inv_duplid - стан валдіності технологічної змінної
 

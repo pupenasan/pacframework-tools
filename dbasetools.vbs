@@ -1,4 +1,3 @@
-
 Option Explicit
 dim result, command, connstr, sqlcmdfilename, dbffile, dbtpath, tabfilename   
 

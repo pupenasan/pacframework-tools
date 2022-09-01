@@ -5,6 +5,7 @@ log
 reports
 totia
 *.pptx
+*.lnk
 
 # Logs
 logs

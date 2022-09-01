@@ -189,11 +189,13 @@ function create_vars(cfgtags) {
   let jsdataBlock = {};
   addvars_to_dataBlock(cfgtags, jsdataBlock);
   jsSTExchangeFile.STExchangeFile.dataBlock = jsdataBlock;
-  if (cfgtags.statistic.DI && cfgtags.statistic.DI.cnt || cfgtags.statistic.NDI && cfgtags.statistic.NDI.cnt) addvar_to_dataBlock("DIH", "DIH", jsdataBlock);
-  if (cfgtags.statistic.DO && cfgtags.statistic.DI.cnt || cfgtags.statistic.NDO && cfgtags.statistic.NDO.cnt) addvar_to_dataBlock("DOH", "DOH", jsdataBlock);
-  if (cfgtags.statistic.AI && cfgtags.statistic.AI.cnt || cfgtags.statistic.NAI && cfgtags.statistic.NAI.cnt) addvar_to_dataBlock("AIH", "AIH", jsdataBlock);
-  if (cfgtags.statistic.AO && cfgtags.statistic.AO.cnt || cfgtags.statistic.NAO && cfgtags.statistic.NAO.cnt) addvar_to_dataBlock("AOH", "AOH", jsdataBlock);
+  if (cfgtags.statistic.DI && cfgtags.statistic.DI.count || cfgtags.statistic.NDI && cfgtags.statistic.NDI.count) addvar_to_dataBlock("DIH", "DIH", jsdataBlock);
+  if (cfgtags.statistic.DO && cfgtags.statistic.DO.count || cfgtags.statistic.NDO && cfgtags.statistic.NDO.count) addvar_to_dataBlock("DOH", "DOH", jsdataBlock);
+  if (cfgtags.statistic.AI && cfgtags.statistic.AI.count || cfgtags.statistic.NAI && cfgtags.statistic.NAI.count) addvar_to_dataBlock("AIH", "AIH", jsdataBlock);
+  if (cfgtags.statistic.AO && cfgtags.statistic.AO.count || cfgtags.statistic.NAO && cfgtags.statistic.NAO.count) addvar_to_dataBlock("AOH", "AOH", jsdataBlock);
   addvar_to_dataBlock("VARBUF", "VARBUF", jsdataBlock);
+  datablockvars_map (jsdataBlock);
+  //console.log (cfgtags.statistic.DI);
 
   let jsDDTSource = [];
   jsDDTSource.push(createDDTSource("VARS", cfgtags, "VAR_CFG"));
@@ -201,7 +203,6 @@ function create_vars(cfgtags) {
   jsDDTSource.push(createDDTSource("DOH", cfgtags, "DOVAR_HMI"));
   jsDDTSource.push(createDDTSource("AIH", cfgtags, "AIVAR_HMI"));
   jsDDTSource.push(createDDTSource("AOH", cfgtags, "AOVAR_HMI"));
-  datablockvars_map (jsdataBlock);
 
   jsSTExchangeFile.STExchangeFile.DDTSource = jsDDTSource;
 

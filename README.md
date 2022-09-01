@@ -99,7 +99,7 @@ node C:\pacfwtools\node_modules\pacframework-tools\index tiaparseall
 
 Нижче наведений перелік утиліт, які може запускати користувач.  
 
-- [getcfgfromxls](masredataxls.md) - отримання майстерданих (проектних даних) з формату Excel в JSON 
+- [getcfgfromxls](masterdataxls.md) - отримання майстерданих (проектних даних) з формату Excel в JSON 
 - seuncreateall -  створення усіх файлів для імпорту в Uity PRO/Cotrol Expert з майстерданих формату Excel 
 - seuncreatechs - створення файлів для імпорту каналів та карти I/O в Uity PRO/Cotrol Expert з майстерданих формату Excel 
 - seuncreatevars - створення файлів для імпорту технологічних змінних в Uity PRO/Cotrol Expert з майстерданих формату Excel 
@@ -108,12 +108,7 @@ node C:\pacfwtools\node_modules\pacframework-tools\index tiaparseall
 - tiaparseall - отримання майстерданих (проектних даних) з TIA portal та перетворення їх в JSON з оновленням в CouchDB
 - wincccreatealm - створення списку тривог в форматі CSV для WinCC Prof
 - updateui2 - створення наповнення графічного інтерфейсу для PACFramework IoT Gateway 
--  citectcreateeqip - створення всього обладнання з експортного варіанту Unity
-- citectcreateacteqip - створення обладнання ВМ з експортного варіанту Unity
-- citectcreatehmi - створення джинів для всього обладнання каркасу
-- citectcreatevarhmi -  створення джинів налагодження для технологічних змінних
-- citectcreateplcmaphmi - створення джинів налагодження для карти ПЛК
-- citectcreateacthmi - створення джинів налагодження для ВМ
+- [Citect](citect.md) - утиліти для Citect 
 - 
 
 ## Перелік утиліт для програміста

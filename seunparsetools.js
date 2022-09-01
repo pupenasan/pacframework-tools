@@ -28,6 +28,11 @@ const opts = {
     chao: 0x0040,
     act: 0x20f0,
   },
+  pathsource: config.seunparsetools.pathsource,
+  pathlog: config.seunparsetools.pathlog,
+  pathresult: config.seunparsetools.pathresult,
+  pathsource: config.seunparsetools.pathsource,
+  xeffile: config.seunparsetools.xeffile
 };
 
 
@@ -40,12 +45,18 @@ let progcodes = {};
 
 function xefparseall () {
   masterdatatools.opts.logfile = "seunparsetools.log";
-  masterdatatools.opts.source = config.seunparsetools.pathsource;
+  /*  masterdatatools.opts.source = config.seunparsetools.pathsource;
   masterdatatools.opts.logpath = config.seunparsetools.pathlog;
-
   const seunsoucefiles = path.normalize(config.seunparsetools.pathsource + "/");
   const seunresultfiles = path.normalize(config.seunparsetools.pathresult + "/");
   const xefsourcefilename = path.normalize(seunsoucefiles + config.seunparsetools.xeffile + ".xef");
+  */
+  masterdatatools.opts.source = opts.pathsource;
+  masterdatatools.opts.logpath = opts.pathlog;
+  const seunsoucefiles = path.normalize(opts.pathsource + "/");
+  const seunresultfiles = path.normalize(opts.pathresult + "/");
+  const xefsourcefilename = path.normalize(seunsoucefiles + opts.xeffile + ".xef");
+
   logmsg("-------------------- Отримання мастерданих з XEF про PLCs");
   try {
     xmlcontent = fs.readFileSync(xefsourcefilename, "utf8");
@@ -78,9 +89,15 @@ function xefparseall () {
   logmsg("Усі змінні з фвйлу отримані, перетворюю в базу даних...");
   //отримання усіх кодів програм
   for (let prog of jscontent.program){
+    if (!prog.STSource) continue //якщо не на мові ST
+    try {
     let sectname = prog.identProgram._attributes.name;
     progcodes[sectname] = prog.STSource._text;
-  }
+    } catch (error) {
+      console.log (prog);
+      process.exit();
+    }
+  }    
   /*
   //назви типів 
   let typeblocknames = {
@@ -295,17 +312,22 @@ function xefparseall () {
 
   //SUbMODULE_BUF
   startadr = plcblocks[varblocknames.SUBMODULE]._attributes.topologicalAddress;
-  mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
-  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
-  let submodulebuf = plc_chs.submodulebuf;
-  submodulebuf.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
-  submodulebuf.type = typeblocknames.SUBMODULE;
-  for (let fieldname in plc_chs.types.SUBMODULE) {
-    submodulebuf[fieldname] = {type: plc_chs.types.SUBMODULE[fieldname].type};
-    submodulebuf[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
-    addaddr (submodulebuf[fieldname].type, adrob);
+  if (startadr)  {
+    mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+    adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
+    let submodulebuf = plc_chs.submodulebuf;
+    submodulebuf.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
+    submodulebuf.type = typeblocknames.SUBMODULE;
+    for (let fieldname in plc_chs.types.SUBMODULE) {
+      submodulebuf[fieldname] = {type: plc_chs.types.SUBMODULE[fieldname].type};
+      submodulebuf[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+      addaddr (submodulebuf[fieldname].type, adrob);
+    }
+    logmsg(`Добавлено інформацію по SUBMODULE`);  
+  } else {
+    logmsg(`ERR: Для SUBMODULE не вказана адреса!`);
   }
-  logmsg(`Добавлено інформацію по SUBMODULE`);
+
   //process.exit();
 
   
@@ -333,32 +355,42 @@ function xefparseall () {
     }   
   }
   startadr = plcblocks[varblocknames.PLC]._attributes.topologicalAddress;
-  mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
-  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
-  let plc = plc_plcs.plc;
-  plc.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
-  plc.type = typeblocknames.PLC;
-  for (let fieldname in plc_plcs.types.PLC_CFG) {
-    plc[fieldname] = {type: plc_plcs.types.PLC_CFG[fieldname].type};
-    plc[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
-    plc[fieldname].descr = plc_plcs.types.PLC_CFG[fieldname].descr;
-    addaddr (plc[fieldname].type, adrob);
+  if (startadr)  {
+    mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+    adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
+    let plc = plc_plcs.plc;
+    plc.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
+    plc.type = typeblocknames.PLC;
+    for (let fieldname in plc_plcs.types.PLC_CFG) {
+      plc[fieldname] = {type: plc_plcs.types.PLC_CFG[fieldname].type};
+      plc[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+      plc[fieldname].descr = plc_plcs.types.PLC_CFG[fieldname].descr;
+      addaddr (plc[fieldname].type, adrob);
+    }
+    logmsg(`Добавлено інформацію по PLC`);
+  } else {
+    logmsg(`ERR: Для PLC не вказана адреса!`);
   }
-  logmsg(`Добавлено інформацію по PLC`);
+
+
 
   //PARASTOHMI
   startadr = plcblocks[varblocknames.PARASTOHMI]._attributes.topologicalAddress;
-  mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
-  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
-  let parastohmi = plc_plcs.parastohmi;
-  parastohmi.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
-  parastohmi.type = typeblocknames.PARASTOHMI;
-  for (let fieldname in plc_plcs.types.PARASTOHMI) {
-    parastohmi[fieldname] = {type: plc_plcs.types.PARASTOHMI[fieldname].type};
-    parastohmi[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
-    addaddr (parastohmi[fieldname].type, adrob);
+  if (startadr)  {
+    mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+    adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
+    let parastohmi = plc_plcs.parastohmi;
+    parastohmi.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
+    parastohmi.type = typeblocknames.PARASTOHMI;
+    for (let fieldname in plc_plcs.types.PARASTOHMI) {
+      parastohmi[fieldname] = {type: plc_plcs.types.PARASTOHMI[fieldname].type};
+      parastohmi[fieldname].adr = '%MW' + adrob.word + '.' + adrob.bitinword; 
+      addaddr (parastohmi[fieldname].type, adrob);
+    }
+    logmsg(`Добавлено інформацію по PARASTOHMI`);  
+  } else {
+    logmsg(`ERR: Для PARASTOHMI не вказана адреса!`);
   }
-  logmsg(`Добавлено інформацію по PARASTOHMI`);
 
   //-------------------- формування бази ВМ
   let plc_acts = {
