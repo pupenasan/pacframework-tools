@@ -159,7 +159,7 @@
 - `PARA` - об'єкт у файлі в форматі вкладеності `ob1.ob2.ob3` 
 - `VALUE` - значення об'єкту 
 
-![image-20220620192458532](G:\san\PLCFramework\pacframework-tools\gitver\media\image-20220620192458532.png)
+![image-20220620192458532](media/image-20220620192458532.png)
 
 ## Лист symbid
 
@@ -169,4 +169,4 @@
 - `LEVEL` - підрівень CM
 - `DESCR` - опис
 
-![image-20220620193346032](G:\san\PLCFramework\pacframework-tools\gitver\media\image-20220620193346032.png)
+![image-20220620193346032](media/image-20220620193346032.png)
