@@ -93,16 +93,13 @@ switch (process.argv[2]) {
     citectcreateeqip();
     break;     
   case "citectcreatehmi":
-    citectcreatehmi();
-    break;
+    ;
   case "citectcreatevarhmi":
-    citectcreatevarhmi();
-    break;    
+    ;
   case "citectcreateplcmaphmi":
-    citectcreateplcmaphmi();
-    break;
+    ;
   case "citectcreateacthmi":
-    citectcreateacthmi();
+    citectcreatehmi();
     break;    
   case "":
     break;
@@ -120,10 +117,11 @@ function citectcreateeqip(){
     return  
   }
   let plcname = process.argv[3];
-  let xeffiles = []; 
+  //let xeffiles = [];
+  let plcnames = []; 
   if (plcname) {
     if (config.citecttools[plcname] && config.citecttools[plcname].xeffile) {
-      xeffiles = [config.citecttools[plcname].xeffile];
+      plcnames = [plcname]
     } else {
       console.log (`Не знайдений розділ конфігурації Citect для ${plcname} або відсутній для нього параметр xeffile`);
       return  
@@ -131,51 +129,77 @@ function citectcreateeqip(){
   } else {
     for (let plcname in config.citecttools) {
       if (config.citecttools[plcname] && config.citecttools[plcname].xeffile) {
-        xeffiles.push (config.citecttools[plcname].xeffile);
+        plcnames.push (plcname);
       }
     }
   }
   seunparsetools.opts.pathsource = config.citecttools.plcsourcepath;
-  for (let xeffile of xeffiles) {
+  for (let plcname of plcnames) {
+    let xeffile = plcname;
     logmsg (`Починаю парсити ${xeffile} ...`);
     seunparsetools.opts.xeffile = xeffile;
     seunparsetools.xefparseall();
     switch (process.argv[2]) {
       case "citectcreateeqip":
-        citecttools.create_equipment();
+        citecttools.create_equipment(plcname);
         break
       case "citectcreatevareqip":
-        citecttools.create_varequipment();
+        citecttools.create_varequipment(plcname);
         break
       case "citectcreatemoduleeqip":
-        citecttools.create_modulequipment();
+        citecttools.create_modulequipment(plcname);
         break
       case "citectcreateacteqip":
-        citecttools.create_actequipment();
+        citecttools.create_actequipment(plcname);
         break
     }
   }   
 } 
 
 function citectcreatehmi(){
-  seunparseall();
-  citecttools.create_hmi(); 
+  if (!config.citecttools) {
+    console.log ('Не знайдений розділ конфігурації Citect');
+    return  
+  }
+  let plcname = process.argv[3];
+  let plcnames = []; 
+  if (plcname) {
+    if (config.citecttools[plcname] && config.citecttools[plcname].xeffile) {
+      plcnames = [plcname]
+    } else {
+      console.log (`Не знайдений розділ конфігурації Citect для ${plcname} або відсутній для нього параметр xeffile`);
+      return  
+    }
+  } else {
+    for (let plcname in config.citecttools) {
+      if (config.citecttools[plcname] && config.citecttools[plcname].xeffile) {
+        plcnames.push (plcname);
+      }
+    }
+  }
+  seunparsetools.opts.pathsource = config.citecttools.plcsourcepath;    
+  for (let plcname of plcnames) {
+    let xeffile = plcname;
+    logmsg (`Починаю парсити ${xeffile} ...`);
+    seunparsetools.opts.xeffile = xeffile;
+    seunparsetools.xefparseall();
+    switch (process.argv[2]) {
+      case "citectcreatehmi":
+        citecttools.create_hmi(plcname);
+        break
+      case "citectcreatevarhmi":
+        citecttools.create_varpages(plcname, true);
+        break
+      case "citectcreateplcmaphmi":
+        citecttools.create_mappages(plcname, true);
+        break
+      case "citectcreateacthmi":
+        citecttools.create_actpages(plcname, true);
+        break
+    }
+  }           
 } 
 
-function citectcreatevarhmi(){
-  seunparseall();
-  citecttools.create_varpages(true); 
-} 
-
-function citectcreateplcmaphmi(){
-  seunparseall();
-  citecttools.create_mappages(true); 
-} 
-
-function citectcreateacthmi(){
-  seunparseall();
-  citecttools.create_actpages(true); 
-} 
 
 //паристь усі файли з tia
 async function tiaparseall() {
