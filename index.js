@@ -2,6 +2,7 @@ const os = require("os");
 const path = require("path");
 const fs = require("fs");
 const lodash = require('lodash');
+const pjson = require('./package.json');
 //const _ = require('underscore');
 global.userdir = path.normalize(os.homedir() + "/pacframeworktools");
 global.inipath = path.normalize(os.homedir() + "/pacframeworktools/config.ini");
@@ -51,7 +52,34 @@ couchtools.opts.password = process.env.COUCH_PASS;
 let twinname = config.general.twinname;
 let seunplcscfg;
 
+let help = ` PACFramework Tools V${pjson.version}, author: Oleksandr Pupena
+команди:
+  getcfgfromxls
+  seuncreateall
+  seuncreatechs
+  seuncreatevars
+  seuncreateacts
+  seunparseall
+  tiacreateall
+  tiaparseall
+  updateui2
+  wincccreatealm
+  citectcreateeqip <plcname>
+  citectcreatevareqip <plcname>
+  citectcreatemoduleeqip <plcname>
+  citectcreateacteqip <plcname>
+  citectcreatehmi <plcname>
+  citectcreatevarhmi <plcname>
+  citectcreateplcmaphmi <plcname>
+  citectcreateacthmi <plcname>`
+
 switch (process.argv[2]) {
+  case '-help':
+  case '-?':
+  case 'help':
+  case '?':
+    console.log (help)
+    break;  
   case "getcfgfromxls":
     getcfgfromxls();
     break;
@@ -102,12 +130,14 @@ switch (process.argv[2]) {
     citectcreatehmi();
     break;    
   case "":
+    console.log (help)    
     break;
   case undefined:
     console.log("Робоча директорія вже була проініціалізована до цього!");
     break;
   default:
     console.log("Немає такої утиліти");
+    console.log (help)    
     break;
 }
 
@@ -135,7 +165,7 @@ function citectcreateeqip(){
   }
   seunparsetools.opts.pathsource = config.citecttools.plcsourcepath;
   for (let plcname of plcnames) {
-    let xeffile = plcname;
+    let xeffile = config.citecttools[plcname].xeffile;
     logmsg (`Починаю парсити ${xeffile} ...`);
     seunparsetools.opts.xeffile = xeffile;
     seunparsetools.xefparseall();
@@ -179,7 +209,7 @@ function citectcreatehmi(){
   }
   seunparsetools.opts.pathsource = config.citecttools.plcsourcepath;    
   for (let plcname of plcnames) {
-    let xeffile = plcname;
+    let xeffile = config.citecttools[plcname].xeffile;
     logmsg (`Починаю парсити ${xeffile} ...`);
     seunparsetools.opts.xeffile = xeffile;
     seunparsetools.xefparseall();

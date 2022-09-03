@@ -379,15 +379,24 @@ function tagstoequipment (plcname) {
         logmsg (`ERR: У змінні ${tgname} вдсутня адреса в plchmi! Ставлю пусту!`);
         tag.plchmi.adr = '';
       }
-      let eqnameob = parseeqname(tgname);
-      if (EQprefix && EQprefix.length>0) {
-        tagprefix = EQprefix + '_' + tgname;
-        eqname = EQprefix + '.' + eqnameob.str;
+      let eqnameob;
+      //'rezdi','rezai','rezdo','rezao',
+      if (tgname.toLowerCase().search('rezdi')!=-1 
+        || tgname.toLowerCase().search('rezai')!=-1 
+        || tgname.toLowerCase().search('rezdo')!=-1
+        || tgname.toLowerCase().search('rezao')!=-1) {
+          eqname = iodevicename + '.vrez.' + tgname;
+          tagprefix = iodevicename + '_' + tgname;
       } else {
-        tagprefix = tgname;
-        eqname = eqnameob.str;            
+        eqnameob = parseeqname(tgname); 
+        if (EQprefix && EQprefix.length>0) {
+          tagprefix = EQprefix + '_' + tgname;
+          eqname = EQprefix + '.' + eqnameob.str;
+        } else {
+          tagprefix = tgname;
+          eqname = eqnameob.str;            
+        }
       }
-
       //AIVAR_HMI
       if (tag.type === 'AI' && typevarscheck.AI) {
         //параметри
@@ -595,7 +604,7 @@ function modulstoequipment (plcname) {
   } else {
     logmsg (`WRN: Не знайдено необхідні типи для ACTTR_CFG зміна Equipment дя нього не буде відбуватися!`);
   }
-  
+  console.log (plcname);
   let iodevicename = config.citecttools[plcname].iodevicename;  
 
   if (masterchs) {
