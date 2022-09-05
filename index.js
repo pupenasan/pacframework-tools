@@ -54,24 +54,24 @@ let seunplcscfg;
 
 let help = ` PACFramework Tools V${pjson.version}, author: Oleksandr Pupena
 команди:
-  getcfgfromxls
-  seuncreateall
-  seuncreatechs
-  seuncreatevars
-  seuncreateacts
-  seunparseall
-  tiacreateall
-  tiaparseall
-  updateui2
-  wincccreatealm
-  citectcreateeqip <plcname>
-  citectcreatevareqip <plcname>
-  citectcreatemoduleeqip <plcname>
-  citectcreateacteqip <plcname>
-  citectcreatehmi <plcname>
-  citectcreatevarhmi <plcname>
-  citectcreateplcmaphmi <plcname>
-  citectcreateacthmi <plcname>`
+  getcfgfromxls - перетворення даних з Excel в JSON
+  seuncreateall - cтворення усіх файлів для імпорту в Uity PRO/Cotrol Expert з майстерданих формату Excel 
+  seuncreatechs - створення файлів для імпорту каналів та карти I/O в Uity PRO/Cotrol Expert з майстерданих формату Excel
+  seuncreatevars - створення файлів для імпорту технологічних змінних в Uity PRO/Cotrol Expert з майстерданих формату Excel
+  seuncreateacts - створення файлів для імпорту ВМ в Uity PRO/Cotrol Expert з майстерданих формату Excel 
+  seunparseall - створення файлів JSON Masterdata з файлу експорту *.xef
+  tiacreateall - створення усіх файлів для імпорту в TIA portal з майстерданих формату Excel 
+  tiaparseall - отримання майстерданих (проектних даних) з TIA portal та перетворення їх в JSON з оновленням в CouchDB
+  updateui2 - створення наповнення графічного інтерфейсу для PACFramework IoT Gateway 
+  wincccreatealm - створення списку тривог в форматі CSV для WinCC Prof
+  citectcreateeqip <plcname> - створення всього обладнання з експортного варіанту Unity для вказаного ПЛК
+  citectcreatevareqip <plcname> - створення обладнання змінних з експортного варіанту Unity для вказаного ПЛК
+  citectcreatemoduleeqip <plcname> - створення обладнання системних змінних та LVL0 з експортного варіанту Unity для вказаного ПЛК
+  citectcreateacteqip <plcname> - створення обладнання ВМ з експортного варіанту Unity для вказаного ПЛК
+  citectcreatehmi <plcname> - створення джинів для всього обладнання каркасу
+  citectcreatevarhmi <plcname> - створення джинів налагодження для технологічних змінних
+  citectcreateplcmaphmi <plcname> - створення джинів налагодження для карти ПЛК
+  citectcreateacthmi <plcname> - створення джинів налагодження для ВМ`
 
 switch (process.argv[2]) {
   case '-help':

@@ -196,11 +196,18 @@ function create_varpages(plcname, initenbl=false){
     for (let tgname in mastertags.tags) {
       let equipment; 
       let tag = mastertags.tags[tgname];
-      if (EQprefix && EQprefix.length>0) {
-        tagprefix = EQprefix + '_' + tgname;
-      } else {
-        tagprefix = tgname;          
-      }
+      if (tgname.toLowerCase().search('rezdi')!=-1 
+      || tgname.toLowerCase().search('rezai')!=-1 
+      || tgname.toLowerCase().search('rezdo')!=-1
+      || tgname.toLowerCase().search('rezao')!=-1) {
+        tagprefix = iodevicename + '_' + tgname;
+      } else {  
+        if (EQprefix && EQprefix.length>0) {
+          tagprefix = EQprefix + '_' + tgname;
+        } else {
+          tagprefix = tgname;          
+        }
+      }  
       //AIVAR_HMI
       if (tag.type === 'DI') {
         dis+= tagprefix + ','
@@ -396,6 +403,8 @@ function tagstoequipment (plcname) {
           tagprefix = tgname;
           eqname = eqnameob.str;            
         }
+        //суфікс добавляється щоб при ієархічому імені не було конфлікту з одноіменними елементами
+        if (eqspacenaming !== 'flat') eqname = eqname + '_' + tag.type; 
       }
       //AIVAR_HMI
       if (tag.type === 'AI' && typevarscheck.AI) {
@@ -622,6 +631,24 @@ function modulstoequipment (plcname) {
     modifyequipments (newequipments, newequiprtpara);
     
     newequipments = {};
+    //визначення максимального ID
+    let maxid = 0;
+    for (let tgname in mastertags.tags) {
+      let id = parseInt(mastertags.tags[tgname].id);
+      if (id>maxid && mastertags.tags[tgname].type==="AI")  maxid = id 
+    }
+    tagprefix = iodevicename + '_PARASTOHMI';
+    paramsdef = JSON.parse(JSON.stringify(equiptypes.PARASTOHMI.paramsdef)); 
+    paramsdef.PFW.ID_MAX =  maxid;
+    newequipments[tagprefix] = {
+      name: iodevicename + '.PARASTOHMI',  
+      type: 'PARASTOHMI', 
+      iodevice: iodevicename, 
+      custom1: masterplcs.parastohmi.adr.replace('%MW','').split('.')[0],
+      param : equipparamtostring (paramsdef),
+      comment: 'Параметри'
+    };
+
     tagprefix = iodevicename + '_CHBUF';
     newequipments[tagprefix] =  {
       name: iodevicename + '.CHBUF', 
@@ -639,14 +666,6 @@ function modulstoequipment (plcname) {
       tagprefix: tagprefix,          
       custom1: masterchs.submodulebuf.adr.replace('%MW','').split('.')[0],
       comment: 'Підмодуль'
-    };
-    tagprefix = iodevicename + '_PARASTOHMI';
-    newequipments[tagprefix] = {
-      name: iodevicename + '.PARASTOHMI',  
-      type: 'PARASTOHMI', 
-      iodevice: iodevicename, 
-      custom1: masterplcs.parastohmi.adr.replace('%MW','').split('.')[0],
-      comment: 'Параметри'
     };
     tagprefix = iodevicename + '_VARBUF';
     newequipments[tagprefix] = {
@@ -681,16 +700,6 @@ function modulstoequipment (plcname) {
         custom1:  module.adr.replace('%MW','').split('.')[0],
         comment: 'Модуль ' + module.modid
       };
-      /*
-      let equipment;
-      equipment = newequipments[tagprefix] = {};
-      equipment.name = iodevicename + '.' + modulename;  
-      equipment.type = 'MODULE';
-      equipment.comment = module.modid;
-      equipment.alias = module.modid;
-      let startadr = module.adr.replace('%MW','').split('.')[0];
-      equipment.custom1 = startadr;
-      */
       i++
     }
     modifyequipments (newequipments, newequiprtpara);
@@ -700,20 +709,26 @@ function modulstoequipment (plcname) {
   }
 } 
 function createcicodeplcfile (iodevicename) {
-  let content = `//Цей код згенеровано автоматично ${new Date().toLocaleString()}
+  let content = `// This code is automatically generated ${new Date().toLocaleString()}
   INT FUNCTION PFW_getparas${iodevicename} () 
     INT ID = ${iodevicename}_PARASTOHMI[0]
     ${iodevicename}_PARASTOHMI_ID = ${iodevicename}_PARASTOHMI[0];
     ${iodevicename}_PARASTOHMI_CLSID[ID] = ${iodevicename}_PARASTOHMI[1];		
     ${iodevicename}_PARASTOHMI_K[ID] = ${iodevicename}_PARASTOHMI[2];
-    INT K = ${iodevicename}_PARASTOHMI_K[ID];
+    INT iK = ${iodevicename}_PARASTOHMI_K[ID];
+    REAL rK;
+    IF iK >= 0 THEN 
+      rK =1.0/IntToReal(iK);
+    ELSE 
+      rK = Abs(IntToReal(iK));
+    END	    
     ${iodevicename}_PARASTOHMI_PRM[ID] = ${iodevicename}_PARASTOHMI[4]
-    ${iodevicename}_PARASTOHMI_LOENG[ID] = ${iodevicename}_PARASTOHMI[5]/K;
-    ${iodevicename}_PARASTOHMI_HIENG[ID] = ${iodevicename}_PARASTOHMI[6]/K;
-    ${iodevicename}_PARASTOHMI_LOSP[ID] = ${iodevicename}_PARASTOHMI[7]/K;
-    ${iodevicename}_PARASTOHMI_HISP[ID] = ${iodevicename}_PARASTOHMI[8]/K;
-    ${iodevicename}_PARASTOHMI_LOLOSP[ID] = ${iodevicename}_PARASTOHMI[9]/K;
-    ${iodevicename}_PARASTOHMI_HIHISP[ID] = ${iodevicename}_PARASTOHMI[10]/K;							
+    ${iodevicename}_PARASTOHMI_LOENG[ID] = ${iodevicename}_PARASTOHMI[5]*rK;
+    ${iodevicename}_PARASTOHMI_HIENG[ID] = ${iodevicename}_PARASTOHMI[6]*rK;
+    ${iodevicename}_PARASTOHMI_LOSP[ID] = ${iodevicename}_PARASTOHMI[7]*rK;
+    ${iodevicename}_PARASTOHMI_HISP[ID] = ${iodevicename}_PARASTOHMI[8]*rK;
+    ${iodevicename}_PARASTOHMI_LOLOSP[ID] = ${iodevicename}_PARASTOHMI[9]*rK;
+    ${iodevicename}_PARASTOHMI_HIHISP[ID] = ${iodevicename}_PARASTOHMI[10]*rK;							
     ${iodevicename}_PARASTOHMI_IDDBL[ID] = ${iodevicename}_PARASTOHMI[11];	
     IF ${iodevicename}_PARASTOHMI_I.q = "Good" THEN 
       ${iodevicename}_PARASTOHMI_IPREV = ${iodevicename}_PARASTOHMI_I;
@@ -722,7 +737,7 @@ function createcicodeplcfile (iodevicename) {
   END
   `
   let filename = pathmasterdbf + '\\' + ctprojectname + '\\PFW_getparas' + iodevicename + '.ci'; 
-  fs.writeFileSync (filename, content, 'utf-8');
+  fs.writeFileSync(filename, content.replace(/\x0A/g, '\x0D\x0A'), 'utf8');
 
 }
 
