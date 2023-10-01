@@ -4,6 +4,7 @@ const fs = require("fs");
 const ini = require("ini"); //https://github.com/npm/ini#readme
 const xmlparser = require("xml-js"); //https://www.npmjs.com/package/xml-js
 const masterdatatools = require("./masterdatatools");
+
 if (!global.userdir) global.userdir = path.normalize(os.homedir() + "/pacframeworktools");
 if (!global.inipath) global.inipath = path.normalize(os.homedir() + "/pacframeworktools/config.ini");
 
@@ -19,9 +20,9 @@ const writetolog = masterdatatools.writetolog;
 const syncobs = masterdatatools.syncobs;
 const sqllogdir = global.userdir + '\\sql'; 
 
-let ctprojectpath, pfwincludepath, pathmasterdbf, ctprojectname, pfwincludename, cntelemetspergenie, cntactspergenie, plcsourcepath, iodevicename, eqspacenaming;
+let ctprojectpath, pfwincludepath, pathmasterdbf, ctprojectname, pfwincludename, cntelemetspergenie, cntactspergenie, plcsourcepath, iodevicename, eqspacenaming, citectver;
  
-let connstrprj, connstrpfw, equiptypes, equiptable, equiprtpara, equipinstancetable, mastertags, masterchs, masterplcs;
+let connstrprj, connstrpfw, equiptypes, equiptable, equiprtpara, equipinstancetable, mastertags, masterchs, masterplcs, equipcfgpara2023old, equipcfgpara2023new;
 if (config.citecttools) {
   pathmasterdbf = config.citecttools.pathmasterdbf;
   ctprojectname = config.citecttools.ctprojectname;
@@ -33,7 +34,13 @@ if (config.citecttools) {
   if  (!fs.existsSync(sqllogdir)) {
     fs.mkdirSync (sqllogdir);
     console.log ('Створив директорію ' + sqllogdir);  
-  }   
+  }
+  //визначення версії
+  let ar = pathmasterdbf.split('\\');
+  for (let t of ar) {
+    if (t.search('SCADA 2020 R2')>-1) {citectver = "2020R2"; break}  
+    if (t.search('SCADA 2023')>-1) {citectver = "2023"; break}
+  }
 }
 
 
@@ -42,6 +49,9 @@ function create_equipment(plcname){
     modulstoequipment(plcname);
     actstoequipment(plcname);
     tagstoequipment(plcname);
+    if (citectver != '2020R2') {
+      savechangedequipara (equipcfgpara2023old, equipcfgpara2023new);
+    }
   }
   logmsg (`Equipment добавлені. Не забудьте обновити усі звязані елементом через Update Equipment!!! `);
   writetolog(1);  
@@ -113,14 +123,31 @@ function init(){
   }  
   
   equiptypes = getequipmenttypesinfo (pfwincludepath);
+  getequipmenttypesinfo (ctprojectpath , equiptypes);
   equiptable = getequipmentypetable(connstrpfw, 'name');
   equiprtpara = getequipparatable(connstrprj, 'value');
   equipinstancetable = getequipmenttable(connstrprj, 'tagprefix')
+  switch (citectver) {
+    case "2023":
+      logmsg (`Читаю параметри Equipment для версії типів 2 2023`);
+      equipcfgpara2023old = (geteqconfigparatable (connstrprj, 'eqconfig')).table;
+      //console.log (equipcfgpara2023old);
+      //process.exit();
+      break;
+  
+    default:
+      break;
+  }
+  equipcfgpara2023new = []; 
 
+  //test
+  //sqlcmd = `UPDATE eqconfig SET eqconfig.value='20144' WHERE cluster='' AND equip='plc_f1.vrez.REZDO144' AND group='PFW' AND name='ID';`
+  //runsql (connstrprj, sqlcmd, '' , 'meq_cfgpara2023');
+  //process.exit(); 
 
   //fs.writeFileSync ("c:/tmp/1.json",  JSON.stringify(equipinstancetable), 'utf8');
   if (Object.keys(equiptypes).length>0) {
-    logmsg (`Отримано наступний перелік типів з включеного проекту:`);
+    logmsg (`Отримано наступний перелік типів з включеного та дійсного проекту:`);
     for (let equiptype in equiptypes) {
       equiptypes[equiptype].founded = (typeof equiptable.tabbyidx[equiptype]==='object');
       //console.log (equiptypes[equiptype]);
@@ -422,10 +449,13 @@ function tagstoequipment (plcname) {
           tagprefix: tagprefix,
           alias : tgname, 
           content : 'FP_AI',  
-          custom1: tag.plchmi.adr.replace('%MW','').split('.')[0],
-          param : equipparamtostring (paramsdef),
           comment: tag.descr
         };
+        if (citectver == '2020R2') {
+          newequipments[tagprefix].param = equipparamtostring (paramsdef)
+        }
+        equipparamtotable2023 (equipcfgpara2023new, newequipments[tagprefix], paramsdef);
+        if (tag.plchmi.adr) newequipments[tagprefix].custom1 = tag.plchmi.adr.replace('%MW','').split('.')[0];
 
         let valuepara = tagprefix + '_PLCLimits'// Equipment runtime parameters
         newequiprtpara[valuepara] = {name:'PLCLimits', value: valuepara};
@@ -443,10 +473,14 @@ function tagstoequipment (plcname) {
           tagprefix: tagprefix,
           alias : tgname, 
           content : 'FP_AI',  
-          custom1: tag.plchmi.adr.replace('%MW','').split('.')[0],
-          param : equipparamtostring (paramsdef),
           comment: tag.descr
-        };        
+        };
+        if (citectver == '2020R2') {
+          newequipments[tagprefix].param = equipparamtostring (paramsdef)
+        }
+        equipparamtotable2023 (equipcfgpara2023new, newequipments[tagprefix],paramsdef);        
+        if (tag.plchmi.adr) newequipments[tagprefix].custom1 = tag.plchmi.adr.replace('%MW','').split('.')[0];
+
         //console.log (equipment);
       }
       //DOVAR_HMI
@@ -460,10 +494,13 @@ function tagstoequipment (plcname) {
           iodevice: iodevicename,
           tagprefix: tagprefix,
           alias : tgname, 
-          custom1: tag.plchmi.adr.replace('%MW','').split('.')[0],
-          param : equipparamtostring (paramsdef),
           comment: tag.descr
-        }; 
+        };
+        if (citectver == '2020R2') {
+          newequipments[tagprefix].param = equipparamtostring (paramsdef)
+        }
+        equipparamtotable2023 (equipcfgpara2023new, newequipments[tagprefix],paramsdef);
+        if (tag.plchmi.adr) newequipments[tagprefix].custom1 = tag.plchmi.adr.replace('%MW','').split('.')[0]; 
       }
       //AOVAR_HMI
       if (tag.type === 'AO' && typevarscheck.AO) {
@@ -476,13 +513,19 @@ function tagstoequipment (plcname) {
           iodevice: iodevicename,
           tagprefix: tagprefix,
           alias : tgname, 
-          custom1: tag.plchmi.adr.replace('%MW','').split('.')[0],
-          param : equipparamtostring (paramsdef),
           comment: tag.descr
-        }; 
+        };
+        if (citectver == '2020R2') {
+          newequipments[tagprefix].param = equipparamtostring (paramsdef)
+        }
+        equipparamtotable2023 (equipcfgpara2023new, newequipments[tagprefix],paramsdef);
+        if (tag.plchmi.adr) newequipments[tagprefix].custom1 = tag.plchmi.adr.replace('%MW','').split('.')[0]; 
       }            
     } 
   }
+  
+  //console.log (equipcfgpara2023new);
+  //process.exit();
 
   logmsg (`----- Модифікую таблицю Equipment технологічними змінними в проекті ${ctprojectpath} ----------------`)
   modifyequipments (newequipments, newequiprtpara);
@@ -550,15 +593,17 @@ function actstoequipment (plcname) {
           tagprefix: tagprefix,
           alias : actname, 
           content : 'FP_' + act.plchmi.type.replace('_HMI',''),  
-          custom1: act.plchmi.adr.replace('%MW','').split('.')[0],
-          param : equipparamtostring (paramsdef),
           comment: act.descr
         };
+        if (citectver == '2020R2') {
+          newequipments[tagprefix].param = equipparamtostring (paramsdef)
+        }
+        equipparamtotable2023 (equipcfgpara2023new, newequipments[tagprefix],paramsdef);
+        if (act.plchmi.adr) newequipments[tagprefix].custom1 = act.plchmi.adr.replace('%MW','').split('.')[0];
         //let valuepara = actname + '_PLCLimits'// Equipment runtime parameters
         //newequiprtpara[valuepara] = {name:'PLCLimits', value: valuepara};
         //console.log (equipment);
         //process.exit()
-        newequipments[tagprefix]
       }
     }
   }
@@ -624,8 +669,8 @@ function modulstoequipment (plcname) {
       type: 'PLC', 
       iodevice: iodevicename,
       tagprefix: tagprefix, 
-      custom1: masterplcs.plc.adr.replace('%MW','').split('.')[0]
     };
+    if (masterplcs.plc.adr) newequipments[tagprefix].custom1 = masterplcs.plc.adr.replace('%MW','').split('.')[0];
     logmsg (`----- Модифікую таблицю Equipment ${plcname} в проекті ${ctprojectpath} ----------------`)
     console.log (iodevicename); 
     modifyequipments (newequipments, newequiprtpara);
@@ -644,10 +689,13 @@ function modulstoequipment (plcname) {
       name: iodevicename + '.PARASTOHMI',  
       type: 'PARASTOHMI', 
       iodevice: iodevicename, 
-      custom1: masterplcs.parastohmi.adr.replace('%MW','').split('.')[0],
-      param : equipparamtostring (paramsdef),
       comment: 'Параметри'
     };
+    if (citectver == '2020R2') {
+      newequipments[tagprefix].param = equipparamtostring (paramsdef)
+    }
+    equipparamtotable2023 (equipcfgpara2023new, newequipments[tagprefix],paramsdef);    
+    if (masterplcs.parastohmi.adr && masterplcs.parastohmi.adr.length>0) newequipments[tagprefix].custom1 = masterplcs.parastohmi.adr.replace('%MW','').split('.')[0];
 
     tagprefix = iodevicename + '_CHBUF';
     newequipments[tagprefix] =  {
@@ -655,27 +703,29 @@ function modulstoequipment (plcname) {
       type: 'CH_BUF', 
       iodevice: iodevicename,
       tagprefix: tagprefix,        
-      custom1: masterchs.chbuf.adr.replace('%MW','').split('.')[0],
       comment: 'Буфер для каналу'
     };
+    if (masterchs.chbuf.adr) newequipments[tagprefix].custom1 = masterchs.chbuf.adr.replace('%MW','').split('.')[0];
+
     tagprefix = iodevicename + '_SUBMODULE';
     newequipments[tagprefix] = {
       name: iodevicename + '.SUBMODULE', 
       type: 'SUBMODULE', 
       iodevice: iodevicename,
       tagprefix: tagprefix,          
-      custom1: masterchs.submodulebuf.adr.replace('%MW','').split('.')[0],
       comment: 'Підмодуль'
     };
+    if (masterchs.submodulebuf.adr) newequipments[tagprefix].custom1 = masterchs.submodulebuf.adr.replace('%MW','').split('.')[0];
+
     tagprefix = iodevicename + '_VARBUF';
     newequipments[tagprefix] = {
       name: iodevicename + '.VARBUF',  
       type: 'VARBUF', 
       iodevice: iodevicename,
       alias: 'VARBUF',
-      custom1: mastertags.varbuf.adr.replace('%MW','').split('.')[0],
       comment: 'Буфер для VAR'
     };
+    if (mastertags.varbuf.adr) newequipments[tagprefix].custom1 = mastertags.varbuf.adr.replace('%MW','').split('.')[0];
     
     tagprefix = iodevicename + '_ACTBUF';
     newequipments[tagprefix] = {
@@ -683,10 +733,9 @@ function modulstoequipment (plcname) {
       type: 'ACTTR_CFG', 
       iodevice: iodevicename,
       alias: 'ACTBUF',
-      custom1: masteracts.actbuf.adr.replace('%MW','').split('.')[0],
       comment: 'Буфер для ВМ'
     };
-
+    if (masteracts.actbuf.adr) newequipments[tagprefix].custom1 = masteracts.actbuf.adr.replace('%MW','').split('.')[0];
 
     let i=0;
     for (let module of masterchs.modules) {
@@ -697,9 +746,10 @@ function modulstoequipment (plcname) {
         type: 'MODULE', 
         iodevice: iodevicename,
         alias: module.modid,
-        custom1:  module.adr.replace('%MW','').split('.')[0],
         comment: 'Модуль ' + module.modid
       };
+      if (module.adr) newequipments[tagprefix].custom1 = module.adr.replace('%MW','').split('.')[0];
+
       i++
     }
     modifyequipments (newequipments, newequiprtpara);
@@ -736,7 +786,7 @@ function createcicodeplcfile (iodevicename) {
     RETURN ${iodevicename}_PARASTOHMI[3];
   END
   `
-  let filename = pathmasterdbf + '\\' + ctprojectname + '\\PFW_getparas' + iodevicename + '.ci'; 
+  let filename = ctprojectpath + '\\PFW_getparas' + iodevicename + '.ci'; 
   fs.writeFileSync(filename, content.replace(/\x0A/g, '\x0D\x0A'), 'utf8');
 
 }
@@ -775,6 +825,14 @@ function getequipparatable (connstr, idx) {
   let records = runsql (connstr, sqlcmd, idx, 'eqparam');
   return records
 }
+// Plant SCADA 2023
+function geteqconfigparatable (connstr, idx) {
+  //CLUSTER	EQUIP	GROUP	NAME	VALUE
+  let sqlcmd = "SELECT * FROM eqconfig.DBF";
+  let records = runsql (connstr, sqlcmd, idx, 'equip');
+  return records
+}
+
 //добавляє нові або замінює існуючі equipment за полем TAGPREFIX
 function modifyequipments(newequipments, newequiprtpara) { 
   let oldequipments = equipinstancetable.tabbyidx;
@@ -848,7 +906,10 @@ function modifyequipments(newequipments, newequiprtpara) {
     } 
   }
   //console.log (sqlcmd);
-  if (sqlcmd.length>0) runsql (connstrprj, sqlcmd, '' , 'meq_' + tagprefix1 );
+  if (sqlcmd.length>0) {
+    logmsg (`Запускаю SQL команду на connstr = ${connstrprj} для ${tagprefix1}`);
+    runsql (connstrprj, sqlcmd, '' , 'meq_' + tagprefix1 );
+  }  
 }
 
 //----------------------------------- SQL
@@ -921,43 +982,53 @@ function tabtoob (records, str, idx) {
   return records
 } 
 //повертає розпарсений XML-тип
-function getequipmenttypesinfo (projectpath){
+function getequipmenttypesinfo (projectpath, equiptypes){
   //отримання інофрмацію про всі типи Equipment
   let filenames = fs.readdirSync(projectpath);
   let xmlcontent;
-  let equiptypes = {};
+  if (!equiptypes) equiptypes = {};
   for (let filename of filenames) {
     let ext = path.extname(filename).toLowerCase();
     if (ext === '.xml') { 
-      let content = fs.readFileSync(projectpath + '\\' + filename, "utf8"); 
+      let content = ""
       try {
-        xmlcontent = xmlparser.xml2js(content, {compact: true,spaces: 4});
-        if (xmlcontent.template && xmlcontent.template.input && xmlcontent.template.input._attributes && xmlcontent.template.input._attributes.name === 'equipment') {
-          //equiptypes[xmlcontent.template.param]
-          let equipment = {};
-          //console.log (xmlcontent.template.param.string)
-          for (let atribute of xmlcontent.template.param.string){
-            if (atribute._attributes.name === 'name' && atribute._text) equipment = equiptypes[atribute._text] = {name: atribute._text};
-            if (atribute._attributes.name === 'parameter-definitions' && atribute._text) {
-              equipment.paramsdef = tmplttoequipparam(atribute._text); 
-            }
-          }
-          equipment.input = xmlcontent.template.input;
-          equipment.output = xmlcontent.template.output;
-          equipment.filename = filename;
-          //console.log (equipment);
-        }        
+        content = fs.readFileSync(projectpath + '\\' + filename, "utf8"); 
       } catch (error) {
         logmsg (`WRN: Не вдалося відкрити файл ${projectpath + '\\' + filename} із за причини ${error}!`) 
+        continue
         //console.log (filename); 
       }
+      content = content.replace(/^\uFEFF/, '');
+      try {
+        xmlcontent = xmlparser.xml2js(content.trim(), {compact: true,spaces: 4});
+      } catch (error) {
+        logmsg (`WRN: Не вдалося розпарсити файл ${projectpath + '\\' + filename} із за причини ${error}!`) 
+        console.log (content);
+        continue
+        //process.exit();
+      }
+      if (xmlcontent.template && xmlcontent.template.input && xmlcontent.template.input._attributes && xmlcontent.template.input._attributes.name === 'equipment') {
+        //equiptypes[xmlcontent.template.param]
+        let equipment = {};
+        //console.log (xmlcontent.template.param.string)
+        for (let atribute of xmlcontent.template.param.string){
+          if (atribute._attributes.name === 'name' && atribute._text) equipment = equiptypes[atribute._text] = {name: atribute._text};
+          if (atribute._attributes.name === 'parameter-definitions' && atribute._text) {
+            equipment.paramsdef = tmplttoequipparam(atribute._text); 
+          }
+        }
+        equipment.input = xmlcontent.template.input;
+        equipment.output = xmlcontent.template.output;
+        equipment.filename = filename;
+        //console.log (equipment);
+      }        
 
     } 
   }
   return equiptypes;
 }
 
-//---------------------------------- EqParameters
+//---------------------------------- EqParameters 2022
 function equipparamtostring (paramsdef){
   let param = '';
   //для param_list без назви групи
@@ -1021,6 +1092,59 @@ function stringtoequipparam (paramstring){
   }
   return paramsdef
 }
+//---------------------------------- EqParameters 2023
+function equipparamtotable2023 (tablepara, equipment, paramsdef){
+  for (let groupname in paramsdef) {
+    if (typeof paramsdef[groupname] == 'object') {
+      let group = paramsdef [groupname];
+      for (let paraname in group) {
+        let record = {
+          cluster : equipment.cluster || '',
+          equip: equipment.name,
+          group: groupname, 
+          name: paraname,
+          value: group [paraname]
+        };
+        tablepara.push (record)
+      }  
+    } else {
+      let record = {
+        cluster : equipment.cluster || '',
+        equip: equipment.name,
+        group: '', 
+        name: groupname,
+        value: paramsdef [groupname]        
+      };
+      tablepara.push (record)
+    }
+  }  
+  return tablepara
+}
+function savechangedequipara (oldparas, newparas){
+  let sqlcmd = '';
+  let oldvalues = {}, newvalues = {};
+  for (let i=0; i<oldparas.length; i++) {
+    let para = oldparas[i];
+    let key = para.cluster + '/' + para.equip + '/' + para.group + '/' + para.name;
+    oldvalues [key] = {i: i, value: para.value} 
+  }
+  for (let para of newparas) {
+    let key = para.cluster + '/' + para.equip + '/' + para.group + '/' + para.name;
+    //інсує такий запис - модифікуємо
+    if  (oldvalues[key] && oldvalues[key].value != para.value) {
+      sqlcmd += `UPDATE eqconfig SET eqconfig.value='${para.value}' ` 
+      sqlcmd += `WHERE cluster='${para.cluster}' AND equip='${para.equip}' AND group='${para.group}' AND name='${para.name}';\n`;
+      //sqlcmd = "UPDATE eqconfig SET name='---';"
+    } else if (!oldvalues[key]) {
+      sqlcmd += `INSERT INTO eqconfig VALUES ('${para.cluster}','${para.equip}','${para.group}','${para.name}','${para.value}');\n`;
+    }
+  }
+  if (sqlcmd.length>0) {
+    logmsg (`Оновлюю таблицю з параметрами Equipment`);
+    logmsg (`Запускаю SQL команду на connstr = ${connstrprj} для зміни конфіг. параметрів`);
+    runsql (connstrprj, sqlcmd, '' , 'meq_cfgpara2023');
+  } 
+} 
 
 module.exports = {
   create_equipment, create_hmi, create_varpages, create_mappages, create_actpages, create_actequipment, create_varequipment, create_modulequipment

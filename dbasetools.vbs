@@ -48,8 +48,18 @@ Function runsql (connstr, sqlcmdfilename, tabfilename)
   sqlcmds = split(sqlcmd, ";" & chr(10))
   for j=lbound(sqlcmds) to ubound(sqlcmds)
     if len(sqlcmds(j))<5 then Exit for
-    WScript.StdOut.Write sqlcmds(j) 
+    WScript.StdOut.Write sqlcmds(j)
+    'WScript.StdErr.Write sqlcmds(j) & vbCrLf
+    On Error Resume Next
     rsTable.Open sqlcmds(j), conn
+    If Err.Number <> 0 Then
+    '  'error handling:
+      WScript.StdErr.Write "---------------------- sql error --------------------" & vbCrLf
+      WScript.StdErr.Write Err.Number & " Srce: " & Err.Source & " Desc: " &  Err.Description & vbCrLf
+      WScript.StdErr.Write sqlcmds(j) & vbCrLf
+      WScript.Quit
+    End If
+    On Error Goto 0
     if rsTable.State=1 then 
       'msgs = msgs & sendmsg("rsTable.fileds=" & rsTable.State)
       if rsTable.Fields.Count>0 then

@@ -27,8 +27,8 @@
     "lodash.merge": "^4.6.2",
     "mime-types": "^2.1.34",
     "nano": "^9.0.5",
+    "unzipper": "^0.10.14",
     "xlsx": "^0.17.4",
     "xml-js": "^1.6.11"
-  },
-  "devDependencies": {}
+  }
 }

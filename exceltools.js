@@ -191,7 +191,12 @@ function getothercfg_fromxls (filexls) {
 function checktagname (tagname) {
   let rforeign = /[^\u0000-\u007f]/;
   if (rforeign.test(tagname)) {
-    logmsg ('Кирилиця в імені ' +  tagname);
+    let tagnamebad = '';
+    for (let l of tagname) {
+      if (rforeign.test (l)) tagnamebad += '>' 
+      tagnamebad += l ;
+    }
+    logmsg ('Кирилиця в імені ' +  tagnamebad);
     return (false);
   }
   let regexp = /[\s ]/;

@@ -7,6 +7,7 @@ const masterdatatools = require("./masterdatatools.js");
 const ini = require("ini"); //https://github.com/npm/ini#readme
 const config = ini.parse(fs.readFileSync(global.inipath, "utf-8"));
 const lodash = require('lodash');
+isadr = true;
 
 const opts = {
   logpath: "log",
@@ -66,8 +67,8 @@ function xefparseall () {
     );
     process.exit();
   }
-  
-  let jscontent = xmlparser.xml2js (xmlcontent, {compact: true, spaces: 4 }).FEFExchangeFile;
+  let allcontent = xmlparser.xml2js (xmlcontent, {compact: true, spaces: 4 });
+  let jscontent = allcontent.FEFExchangeFile || allcontent.ZEFExchangeFile;
   /*
   let DDTSource = jscontent.DDTSource;
   let variables = jscontent.dataBlock.variables;
@@ -216,8 +217,8 @@ function xefparseall () {
       let typeblock = alltypes[typename];
       let topoadr = plcblocks[varblocknm]._attributes.topologicalAddress;
       if (!topoadr) {
-        logmsg(`ERR: Блок ${varblocknm} не має адреси:`);
-        continue
+        logmsg(`WRN: Блок ${varblocknm} не має адреси:`);
+        topoadr = "";
       }
       let mwbias = parseInt(topoadr.toUpperCase().replace('%MW',''));
       
@@ -278,9 +279,10 @@ function xefparseall () {
   }
   //модулі
   let modulenmb=0; 
-  let startadr = plcblocks[varblocknames.MODULES]._attributes.topologicalAddress;
-  let mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
-  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0}
+  let mwbias = 0;
+  let startadr = plcblocks[varblocknames.MODULES]._attributes.topologicalAddress || "0";
+  mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0}  
   for (let modulexml of plcblocks[varblocknames.MODULES].instanceElementDesc) {
     let module = {};
     module.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
@@ -298,10 +300,10 @@ function xefparseall () {
 
   //CH_BUF
   startadr = plcblocks[varblocknames.CH_BUF]._attributes.topologicalAddress;
-  mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
-  adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
+  if (startadr) mwbias = parseInt(startadr.toUpperCase().replace('%MW',''));
+  if (startadr) adrob = {byte:mwbias*2, bit:0,  word:mwbias, bitinword:0};
   let chbuf = plc_chs.chbuf;
-  chbuf.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
+  if (startadr) chbuf.adr = '%MW' + adrob.word + '.' + adrob.bitinword;
   chbuf.type = typeblocknames.CH_BUF;
   for (let fieldname in plc_chs.types.CH_BUF) {
     chbuf[fieldname] = {type: plc_chs.types.CH_BUF[fieldname].type};
@@ -325,7 +327,7 @@ function xefparseall () {
     }
     logmsg(`Добавлено інформацію по SUBMODULE`);  
   } else {
-    logmsg(`ERR: Для SUBMODULE не вказана адреса!`);
+    logmsg(`WRN: Для SUBMODULE не вказана адреса!`);
   }
 
   //process.exit();
@@ -369,7 +371,7 @@ function xefparseall () {
     }
     logmsg(`Добавлено інформацію по PLC`);
   } else {
-    logmsg(`ERR: Для PLC не вказана адреса!`);
+    logmsg(`WRN: Для обєкту PLC не вказана адреса!`);
   }
 
 
@@ -389,7 +391,7 @@ function xefparseall () {
     }
     logmsg(`Добавлено інформацію по PARASTOHMI`);  
   } else {
-    logmsg(`ERR: Для PARASTOHMI не вказана адреса!`);
+    logmsg(`WRN: Для PARASTOHMI не вказана адреса!`);
   }
 
   //-------------------- формування бази ВМ
@@ -555,7 +557,7 @@ function DDTtotype (DDTSource, pfwtype) {
       descr: field.comment ? field.comment._text: ''
     }
     //якщо тип представлений структурою
-    if (DDTSource.structure.variables[i+1] && DDTSource.structure.variables[i+1].attribute && DDTSource.structure.variables[i+1].attribute._attributes.name === 'ExtractBit' && DDTfield.type !== 'BOOL') {
+    if (DDTSource.structure.variables[i+1] && DDTSource.structure.variables[i+1].attribute && DDTSource.structure.variables[i+1].attribute._attributes && DDTSource.structure.variables[i+1].attribute._attributes.name === 'ExtractBit' && DDTfield.type !== 'BOOL') {
       DDTfield.type = DDTSource._attributes.DDTName.split('_')[0] + '_' + field._attributes.name;
       DDTSource
     }

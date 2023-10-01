@@ -3,6 +3,9 @@ const path = require("path");
 const fs = require("fs");
 const lodash = require('lodash');
 const pjson = require('./package.json');
+const child_process = require( 'child_process' );
+//const unzipper = require('unzipper');
+//const zlib = require('zlib');
 //const _ = require('underscore');
 global.userdir = path.normalize(os.homedir() + "/pacframeworktools");
 global.inipath = path.normalize(os.homedir() + "/pacframeworktools/config.ini");
@@ -141,6 +144,16 @@ switch (process.argv[2]) {
     break;
 }
 
+function zeftoxef (zefpath, filename) {
+  let fullpath = zefpath + '\\' + filename + '.zef';
+  console.log ("Розпаковую файл " + fullpath);
+  let paras = ["-xf", fullpath, "-C", config.citecttools.plcsourcepath, "*.xef"] 
+  //tar -xf C:\Users\OleksandrPupena\pacframeworktools\source\plc_f1.zef -C C:\Users\OleksandrPupena\pacframeworktools\source *.xef 
+  //https://renenyffenegger.ch/notes/Windows/dirs/Windows/System32/tar_exe
+  let out = child_process.spawnSync('tar.exe' , paras, {stdio: ['pipe', 'pipe', process.stderr]});
+  fs.renameSync (zefpath + '\\' + 'unitpro.xef', zefpath + '\\' + filename + '.xef');
+  //process.exit ();
+}
 function citectcreateeqip(){
   if (!config.citecttools) {
     console.log ('Не знайдений розділ конфігурації Citect');
@@ -150,21 +163,29 @@ function citectcreateeqip(){
   //let xeffiles = [];
   let plcnames = []; 
   if (plcname) {
-    if (config.citecttools[plcname] && config.citecttools[plcname].xeffile) {
-      plcnames = [plcname]
+    if (config.citecttools[plcname] && config.citecttools[plcname].xeffile || config.citecttools[plcname].zeffile) {
+      if (config.citecttools[plcname].zeffile) {
+        zeftoxef (config.citecttools.plcsourcepath, config.citecttools[plcname].zeffile);
+      }
+      config.citecttools[plcname].xeffile = config.citecttools[plcname].zeffile;
+      plcnames = [plcname];
     } else {
       console.log (`Не знайдений розділ конфігурації Citect для ${plcname} або відсутній для нього параметр xeffile`);
       return  
     }
   } else {
     for (let plcname in config.citecttools) {
-      if (config.citecttools[plcname] && config.citecttools[plcname].xeffile) {
+      if (config.citecttools[plcname] && config.citecttools[plcname].xeffile || config.citecttools[plcname].zeffile) {
+        if (config.citecttools[plcname].zeffile) {
+          zeftoxef (config.citecttools.plcsourcepath, config.citecttools[plcname].zeffile);
+        }
+        config.citecttools[plcname].xeffile = config.citecttools[plcname].zeffile;
         plcnames.push (plcname);
       }
     }
   }
   seunparsetools.opts.pathsource = config.citecttools.plcsourcepath;
-  for (let plcname of plcnames) {
+  for (let plcname of plcnames) { 
     let xeffile = config.citecttools[plcname].xeffile;
     logmsg (`Починаю парсити ${xeffile} ...`);
     seunparsetools.opts.xeffile = xeffile;
@@ -200,16 +221,17 @@ function citectcreatehmi(){
       console.log (`Не знайдений розділ конфігурації Citect для ${plcname} або відсутній для нього параметр xeffile`);
       return  
     }
-  } else {
+  } else { 
     for (let plcname in config.citecttools) {
-      if (config.citecttools[plcname] && config.citecttools[plcname].xeffile) {
+      if (config.citecttools[plcname] && config.citecttools[plcname].xeffile || config.citecttools[plcname].zeffile) {
+        console.log (plcname);
         plcnames.push (plcname);
       }
     }
   }
   seunparsetools.opts.pathsource = config.citecttools.plcsourcepath;    
   for (let plcname of plcnames) {
-    let xeffile = config.citecttools[plcname].xeffile;
+    let xeffile = config.citecttools[plcname].xeffile || config.citecttools[plcname].zeffile;
     logmsg (`Починаю парсити ${xeffile} ...`);
     seunparsetools.opts.xeffile = xeffile;
     seunparsetools.xefparseall();

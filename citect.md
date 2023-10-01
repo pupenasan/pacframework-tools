@@ -8,7 +8,7 @@
 
 **PFW** - скорочена назва PACFramework
 
-**PFWToola** - скорочена назва PACFramework Tools
+**PFwTools** - скорочена назва PACFramework Tools
 
 **Змінні ПЛК** - об'єкти PFW з ПЛК, що передбачені для обміну зі SCADA/HMI  
 

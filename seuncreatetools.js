@@ -544,7 +544,9 @@ function addvars_to_dataBlock(cfgtags, jsdataBlock) {
         });
         //добавляємо машстабування, якщо воно вказане
         if ((tag.props.TYPE === "AI" || tag.props.TYPE === "AO" || tag.props.TYPE === "NAI" || tag.props.TYPE === "NAO") && tag.props.SCALE) {
-          let scalear = tag.props.SCALE.replace(/[()]/g, "").split("..");
+          let scalesAr = tag.props.SCALE.split (')(');
+          let scaleOut = scalesAr [scalesAr.length-1];
+          let scalear = scaleOut.replace(/[()]/g, "").split(".."); // tag.props.SCALE.replace(/[()]/g, "").split("..");
           if (scalear.length === 2) {
             let min = parseFloat(scalear[0]).toFixed(3);
             let max = parseFloat(scalear[1]).toFixed(3);
@@ -556,6 +558,24 @@ function addvars_to_dataBlock(cfgtags, jsdataBlock) {
               _attributes: { name: "HIENG" },
               value: { _text: max.toString() },
             });
+          }
+          //якщо масива два, то є ще вхідний діапазон
+          if (scalesAr.length===2) {
+            let scaleIn = scalesAr [0];
+            scalear = scaleIn.replace(/[()]/g, "").split(".."); // tag.props.SCALE.replace(/[()]/g, "").split("..");
+            if (scalear.length === 2) {
+              let min = parseInt(scalear[0]);
+              let max = parseInt(scalear[1]);
+              jsVAR.instanceElementDesc.push({
+                _attributes: { name: "LORAW" },
+                value: { _text: min.toString() },
+              });
+              jsVAR.instanceElementDesc.push({
+                _attributes: { name: "HIRAW" },
+                value: { _text: max.toString() },
+              });
+              //console.log (tag);
+            }  
           }
         }
         //добавлення тегу до тегів

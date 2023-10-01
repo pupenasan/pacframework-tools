@@ -146,7 +146,7 @@ function tiaparseall() {
     "utf8"
   );
 
-  logmsg("-------------------- Отримання інофрмації про IoTBuf");
+  logmsg("-------------------- Отримання інформації про IoTBuf");
   let iot = {};
   listfiles = {
     xmlbuffile: config.tiaparsetools.iot_xmlbuffile
