@@ -4,9 +4,7 @@ const fs = require("fs");
 const lodash = require('lodash');
 const pjson = require('./package.json');
 const child_process = require( 'child_process' );
-//const unzipper = require('unzipper');
-//const zlib = require('zlib');
-//const _ = require('underscore');
+
 global.userdir = path.normalize(os.homedir() + "/pacframeworktools");
 global.inipath = path.normalize(os.homedir() + "/pacframeworktools/config.ini");
 
@@ -152,7 +150,6 @@ function zeftoxef (zefpath, filename) {
   //https://renenyffenegger.ch/notes/Windows/dirs/Windows/System32/tar_exe
   let out = child_process.spawnSync('tar.exe' , paras, {stdio: ['pipe', 'pipe', process.stderr]});
   fs.renameSync (zefpath + '\\' + 'unitpro.xef', zefpath + '\\' + filename + '.xef');
-  //process.exit ();
 }
 function citectcreateeqip(){
   if (!config.citecttools) {
@@ -160,7 +157,6 @@ function citectcreateeqip(){
     return  
   }
   let plcname = process.argv[3];
-  //let xeffiles = [];
   let plcnames = []; 
   if (plcname) {
     if (config.citecttools[plcname] && config.citecttools[plcname].xeffile || config.citecttools[plcname].zeffile) {
@@ -262,7 +258,6 @@ async function tiaparseall() {
 //парсить усі файли з Unity PRO
 async function seunparseall() {
   let plcmasterdata = seunparsetools.xefparseall();
-  //await couchtools.doc_toCouchdb(plcmasterdata, twinname, "plcmasterdata");
 }
 
 //створює файли Unity_PRO по конфігураційним налаштуванням
@@ -337,7 +332,6 @@ function getcfgfromxls() {
       lodash.merge(section, cfgopts[sectionname]); //злиття 2-х обєктів
     }
   }
-  //console.log (cfgtags);
 
   //створення папки результату, якщо її немає
   if (fs.existsSync(config.exceltools.pathresult) === false) {
