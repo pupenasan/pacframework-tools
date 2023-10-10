@@ -30,5 +30,10 @@
     "unzipper": "^0.10.14",
     "xlsx": "^0.17.4",
     "xml-js": "^1.6.11"
+  },
+  "devDependencies": {
+    "eslint": "^8.51.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.28.1"
   }
 }
