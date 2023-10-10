@@ -4,7 +4,8 @@
   "description": "tools for PACFramework ",
   "main": "index.js",
   "scripts": {
-    "tiaparseall": "node index tiaparseall"
+    "tiaparseall": "node index tiaparseall",
+    "lint": "eslint . --fix"
   },
   "repository": {
     "type": "git",
