@@ -1,26 +1,26 @@
-//https://github.com/apache/couchdb-nano
+// https://github.com/apache/couchdb-nano
 const masterdatatools = require('../common/masterdatatools');
-//const UI2 = require ('./iotgw/ui2/index.js');
+// const UI2 = require ('./iotgw/ui2/index.js');
 const opts = {
-  user:'',
-  password:'',
+  user: '',
+  password: '',
   logpath: 'log',
   logfile: 'general.log',
 };
 
-//скорочені назви функцій
-const logmsg = masterdatatools.logmsg;
-const writetolog = masterdatatools.writetolog;
+// скорочені назви функцій
+const { logmsg } = masterdatatools;
+const { writetolog } = masterdatatools;
 
 async function doc_toCouchdb(data, dbname, docname) {
   const nano = require('nano')(`http://${opts.user}:${opts.password}@localhost:5984`);
   if (!dbname) dbname = 'tmpdb';
   if (!docname) docname = 'tmpdoc';
-  
+
   try {
-    const response = await nano.db.get(dbname)
+    const response = await nano.db.get(dbname);
   } catch (e) {
-    logmsg (`Помилка ${e} при піключенні до БД ${dbname}, створюю нову`);
+    logmsg(`Помилка ${e} при піключенні до БД ${dbname}, створюю нову`);
     if (e.statusCode === 404) {
       await nano.db.create(dbname);
     }
@@ -28,104 +28,106 @@ async function doc_toCouchdb(data, dbname, docname) {
   const db = nano.use(dbname);
   try {
     const doc = await db.get(docname);
-    const response = await db.insert({ _id: docname, _rev: doc._rev,  data });
-    logmsg (`Пишу дані в CouchDB ...`); 
+    const response = await db.insert({ _id: docname, _rev: doc._rev, data });
+    logmsg('Пишу дані в CouchDB ...');
   } catch (e) {
-    logmsg (`Помилка ${e} при доступу до документу ${docname}, створюю новий`);  
+    logmsg(`Помилка ${e} при доступу до документу ${docname}, створюю новий`);
     if (e.statusCode === 404) {
-      const response = await db.insert({ _id: docname, data })
-    } 
+      const response = await db.insert({ _id: docname, data });
+    }
   } finally {
-    logmsg (`Дані записані в CouchDB`);      
-  }     
-  
-  //const response = await db.insert({ happy: true }, 'rabbit');
-  //return response
+    logmsg('Дані записані в CouchDB');
+  }
+
+  // const response = await db.insert({ happy: true }, 'rabbit');
+  // return response
 }
 
-async function Couchdb_todoc (dbname, docname) {
+async function Couchdb_todoc(dbname, docname) {
   const nano = require('nano')(`http://${opts.user}:${opts.password}@localhost:5984`);
   if (!dbname) {
-    logmsg (`Не вказана БД`); 
-    return 
+    logmsg('Не вказана БД');
+    return;
   }
   if (!docname) {
-    logmsg (`Не вказаний документ`); 
-    return 
+    logmsg('Не вказаний документ');
+    return;
   }
   try {
-    const response = await nano.db.get(dbname)
+    const response = await nano.db.get(dbname);
   } catch (e) {
-    logmsg (`Помилка ${e} при піключенні до БД`);
-    return
-  } 
+    logmsg(`Помилка ${e} при піключенні до БД`);
+    return;
+  }
   const db = nano.use(dbname);
   let doc;
   try {
     doc = await db.get(docname);
   } catch (e) {
-    logmsg (`Помилка ${e} при доступу до документу ${docname}`);  
-    return
-  }     
-  
-  return doc
+    logmsg(`Помилка ${e} при доступу до документу ${docname}`);
+    return;
+  }
+
+  return doc;
 }
 
 async function files_toCouchdb(dbname, docname, files) {
   const nano = require('nano')(`http://${opts.user}:${opts.password}@localhost:5984`);
-  if (!Array.isArray (files) || !files[0] || !files[0].name || !files[0].format || !files[0].data) {
-    logmsg (`Помилка в форматі масиву переданих файлів`);
-    console.log (files);
-    return false
+  if (!Array.isArray(files) || !files[0] || !files[0].name || !files[0].format || !files[0].data) {
+    logmsg('Помилка в форматі масиву переданих файлів');
+    console.log(files);
+    return false;
   }
-  let db, doc; 
+  let db; let
+    doc;
 
   if (!dbname) {
-    logmsg (`Не задана БД`);
-    return false
-  };
+    logmsg('Не задана БД');
+    return false;
+  }
   if (!docname) {
-    logmsg (`Не задано документ`);
-    return false
-  };
-  
+    logmsg('Не задано документ');
+    return false;
+  }
+
   try {
-    const response = await nano.db.get(dbname)
+    const response = await nano.db.get(dbname);
   } catch (e) {
-    logmsg (`Помилка ${e} при піключенні до БД ${dbname}`);
-    return false
+    logmsg(`Помилка ${e} при піключенні до БД ${dbname}`);
+    return false;
   }
   db = nano.use(dbname);
   try {
     doc = await db.get(docname);
   } catch (e) {
-    logmsg (`Помилка ${e} при доступу до документу ${docname}, створюю новий`);  
+    logmsg(`Помилка ${e} при доступу до документу ${docname}, створюю новий`);
     if (e.statusCode === 404) {
-      doc ={};
-      const response = await db.insert({ _id: docname, doc})
-    } 
-  } 
-  for (let file of files) {
-    doc = await db.get(docname);
-    //console.log (file.name);
-    try {
-      await db.attachment.insert(docname, 
-        file.name, 
-        file.data, 
-        file.format,
-        {rev: doc._rev}
-      )
-    } catch (e) {
-      console.log ('Помилка прикліплення файлу: ' + e);
-      return false
+      doc = {};
+      const response = await db.insert({ _id: docname, doc });
     }
   }
-  return true        
+  for (const file of files) {
+    doc = await db.get(docname);
+    // console.log (file.name);
+    try {
+      await db.attachment.insert(
+        docname,
+        file.name,
+        file.data,
+        file.format,
+        { rev: doc._rev },
+      );
+    } catch (e) {
+      console.log(`Помилка прикліплення файлу: ${e}`);
+      return false;
+    }
+  }
+  return true;
 }
 
 module.exports = {
-  files_toCouchdb, Couchdb_todoc,
-  doc_toCouchdb, opts
-}
-
-
+  files_toCouchdb,
+  Couchdb_todoc,
+  doc_toCouchdb,
+  opts,
+};
