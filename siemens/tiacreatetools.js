@@ -1,7 +1,7 @@
 const os = require('os');
 const fs = require ('fs');
 let path = require('path');
-const masterdatatools = require ('./masterdatatools');
+const masterdatatools = require ('../common/masterdatatools');
 //const envvar = require ('./const.js');
 
 const opts = {

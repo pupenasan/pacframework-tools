@@ -3,7 +3,7 @@
 const path = require("path");
 const fs = require("fs");
 const xmlparser = require("xml-js"); //https://www.npmjs.com/package/xml-js
-const masterdatatools = require("./masterdatatools");
+const masterdatatools = require("../common/masterdatatools");
 const ini = require("ini"); //https://github.com/npm/ini#readme
 const config = ini.parse(fs.readFileSync(global.inipath, "utf-8"));
 

@@ -1,7 +1,7 @@
 const fs = require ('fs');
 const path = require ('path');
 const mdtools = require ('./mdtools.js');
-const masterdatattools = require('./masterdatatools');
+const masterdatattools = require('../common/masterdatatools');
 const { exec, execSync } = require('child_process');
 
 //скорочені назви функцій

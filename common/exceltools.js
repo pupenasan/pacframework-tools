@@ -20,17 +20,10 @@ getothercfg_fromxls (filexls) => cfgopts - отримання інформаці
 checktagname (tagname) => true (якщо ок) - перевірка на коректність назв (крилиця, недозволені символи в іменах)
 */
 const xlsx = require('xlsx');
-const fs = require ('fs');
-const path = require ('path');
-const masterdatattools = require('./masterdatatools');
 
 //скорочені назви функцій
-const logmsg = masterdatattools.logmsg;
-
-const opts = {
-  logpath: 'log',
-  logfile: 'exceltools.log',
-};
+const {logmsgar, msgar} = require ('./masterdatatools.js');
+//const msgar = [];
 
 //отримання базової інформації про теги закладка tags
 function getcfgtags_fromxls (filexls) {
@@ -43,7 +36,7 @@ function getcfgtags_fromxls (filexls) {
   tagrows.sort((a, b) => {
     return a.ID - b.ID;
   }); 
-  logmsg ('Розбиваю записи по тегам', 1); 
+  logmsgar ('Розбиваю записи по тегам', 1, 'excelgettags', 'msg', msgar);
   let i=0;
   for (let row of tagrows) {
     i++;
@@ -52,25 +45,26 @@ function getcfgtags_fromxls (filexls) {
     let tag = {state: 'valid'};
     if (!tagname) {
       tagname = '$TEMPORARY' + i; 
-      logmsg (`ERR: Не знайдено ім'я тегу у записі номер ${i}, надано тимчасове ім'я тегу ${tagname}, тег невалідний`, 1);
+      logmsgar (`ERR: Не знайдено ім'я тегу у записі номер ${i}, надано тимчасове ім'я тегу ${tagname}, тег невалідний`, 1, 'excelgettags', 'ERR', msgar);
       tag.state = 'inv_noname' 
     }
     if (cfgtags.tags[tagname]) {
       tagname = '$TEMPORARY' + i;       
-      logmsg (`ERR: Знайдено повторне ім'я тегу у записі номер ${i}, надано тимчасове ім'я тегу ${tagname}, тег невалідний`, 1);
+      logmsgar (`ERR: Знайдено повторне ім'я тегу у записі номер ${i}, надано тимчасове ім'я тегу ${tagname}, тег невалідний`, 1, 'excelgettags', 'ERR', msgar);
       tag.state = 'inv_duplname'       
     }
     if (checktagname(tagname)===false) {
-      tagname = '$TEMPORARY' + i;
-      logmsg (`ERR: Надано тимчасове ім'я тегу ${tagname}, тег невалідний`, 1);       
+      tagname = '$TEMPORARY' + i;  
+      logmsgar (`ERR: Надано тимчасове ім'я тегу ${tagname}, тег невалідний`, 1, 'excelgettags', 'ERR', msgar);
       tag.state = 'inv_name'        
     }
     if (!id>0) {
-      logmsg (`ERR: Ідентифікатор ${row.ID} для тегу ${tagname} некоректний, ідентифікатор обнулено, тег невалідний`, 1);
+      logmsgar (`ERR: Ідентифікатор ${row.ID} для тегу ${tagname} некоректний, ідентифікатор обнулено, тег невалідний`, 1, 'excelgettags', 'ERR', msgar);
+
       id = 0;
       tag.state = 'inv_id';        
     } else if (cfgtags.ids[id] ) {
-      logmsg (`ERR: Ідентифікатор ${id} для тегу ${tagname} вже існує для тегу ${cfgtags.ids[id]} , ідентифікатор обнулено, тег невалідний`, 1);
+      logmsgar (`ERR: Ідентифікатор ${id} для тегу ${tagname} вже існує для тегу ${cfgtags.ids[id]} , ідентифікатор обнулено, тег невалідний`, 1, 'excelgettags', 'ERR', msgar);
       id = 0;
       tag.state = 'inv_duplid';        
     }
@@ -88,8 +82,6 @@ function getcfgtags_fromxls (filexls) {
     } else {
       cfgtags.invalids[id] = tagname   
     }
-    //console.log (cfgtags);  
-    //process.exit();
   }
   return cfgtags;
 }
@@ -158,7 +150,6 @@ function getchtypes_fromxls (filexls) {
     let chtype = chtypes[row.TYPE];
     chtype[row.SUBTYPE] = {clsid : row.CLSID, description : row.DESCR} 
   }
-  //console.log (chtypes);
   return (chtypes);
 }
 
@@ -169,10 +160,8 @@ function getothercfg_fromxls (filexls) {
   const wss = wb.Sheets;
   const wsopts = wss['other'];
   for (row of xlsx.utils.sheet_to_json(wsopts)) {
-    //console.log (row);
     if (!cfgopts[row.SECTION]) cfgopts[row.SECTION] = {};
     let section = cfgopts[row.SECTION];
-    //console.log (section);
     let strparaname = row.PARA;
     let parapath = strparaname.split('.');
     let para = section;
@@ -183,7 +172,6 @@ function getothercfg_fromxls (filexls) {
     para.value =  row.VALUE;
     //section.para = para;  
   }
-  //console.log (cfgopts); process.exit();
   return (cfgopts);
 }
 
@@ -196,12 +184,12 @@ function checktagname (tagname) {
       if (rforeign.test (l)) tagnamebad += '>' 
       tagnamebad += l ;
     }
-    logmsg ('Кирилиця в імені ' +  tagnamebad);
+    logmsgar ('Кирилиця в імені ' +  tagnamebad, 1, 'excelgettags', 'ERR', msgar);
     return (false);
   }
   let regexp = /[\s ]/;
-  if (regexp.test (tagname)) {
-    logmsg ('Недозволені символи в імені ' +  tagname);    
+  if (regexp.test (tagname)) {  
+    logmsgar ('Недозволені символи в імені ' +  tagname,1, 'excelgettags', 'ERR', msgar);
     return (false);   
   }
   return (true);
@@ -210,5 +198,5 @@ function checktagname (tagname) {
 
 module.exports = {
    getcfgtags_fromxls, getacttypes_fromxls, getchtypes_fromxls, getothercfg_fromxls,
-   opts
+   msgar
 };

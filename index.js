@@ -4,6 +4,8 @@ const fs = require("fs");
 const lodash = require('lodash');
 const pjson = require('./package.json');
 const child_process = require( 'child_process' );
+const ini = require("ini"); //https://github.com/npm/ini#readme
+
 
 global.userdir = path.normalize(os.homedir() + "/pacframeworktools");
 global.inipath = path.normalize(os.homedir() + "/pacframeworktools/config.ini");
@@ -14,7 +16,6 @@ if (fs.existsSync(userdir) === false) {
   console.log("Створив директорію в " + userdir);
 }
 
-const ini = require("ini"); //https://github.com/npm/ini#readme
 if (fs.existsSync(userdir + "/config.ini") === false) {
   //%Userprofile%
   inicontent = fs.readFileSync(__dirname + "/config_sample.ini", "utf8");
@@ -29,18 +30,21 @@ if (fs.existsSync(userdir + "/config.ini") === false) {
   process.exit();
 }
 const config = ini.parse(fs.readFileSync(userdir + "/config.ini", "utf-8"));
+const {logmsgar, writetologar} = require ("./common/masterdatatools"); 
 
-const tiaparsetools = require("./tiaparsetools"); //модуль для конвертування змісту проекту TIA в Master Data
-const seunparsetools = require("./seunparsetools"); //модуль для конвертування змісту проекту UnityPRO в Master Data
-const exceltools = require("./exceltools"); //
-const masterdatatools = require("./masterdatatools");
-const reptools = require("./reptools");
-const tiacreatetools = require("./tiacreatetools");
-const seuncreatetools = require("./seuncreatetools");
-const couchtools = require("./couchtools");
-const ui2tools = require("./ui2tools");
-const wincctoos = require("./wincctools");
-const citecttools = require("./citecttools.js");
+const masterdatatools = require("./common/masterdatatools");
+const msgar = masterdatatools.msgar;
+const exceltools = require("./common/exceltools"); //
+const tiaparsetools = require("./siemens/tiaparsetools"); //модуль для конвертування змісту проекту TIA в Master Data
+const seunparsetools = require("./seunity/seunparsetools"); //модуль для конвертування змісту проекту UnityPRO в Master Data
+
+const reptools = require("./reporttools/reptools");
+const tiacreatetools = require("./siemens/tiacreatetools");
+const seuncreatetools = require("./seunity/seuncreatetools");
+const couchtools = require("./dbtools/couchtools");
+const ui2tools = require("./webuitools/ui2tools");
+const wincctoos = require("./siemens/wincctools");
+const citecttools = require("./citect/citecttools.js");
 
 
 //скорочені назви функцій
@@ -303,14 +307,17 @@ function tiacreateall() {
 }
 
 function getcfgfromxls() {
-  exceltools.opts.logpath = "log";
-  exceltools.opts.logfile = "exceltools.log";
-  masterdatatools.opts.logfile = "test.log";
+  //exceltools.opts.logpath = "log";
+  //exceltools.opts.logfile = "exceltools.log";
+  let msgarloc = msgar;
+  masterdatatools.msgar = msgarloc;
+  //exceltools.msgar = msgarloc;
+  //masterdatatools.opts.logfile = "test.log";
   let cfgtags = getcfgtags_fromxls();
   let cfgacts = getcfacts_fromxls(cfgtags);
   let cfgchs = {};
   let cfgchmap = chsmap_fromcfg(cfgchs, cfgtags);
-  
+  //msgarloc = JSON.parse (JSON.stringify(exceltools.msgar));
   //розміщення додактових опцій по розділам
   for (sectionname in cfgopts) {
     let section;
@@ -325,7 +332,7 @@ function getcfgfromxls() {
         section = cfgacts;      
         break;  
       default:
-        logmsg (`WRN: Секція ${sectionname} вказана в додактових опціях Excel "other" не має цільоввого призначення`);
+        logmsgar (`WRN: Секція ${sectionname} вказана в додактових опціях Excel "other" не має цільоввого призначення`, 1, "getcfgfromxls", "WRN", msgarloc)
         break;
     }
     if (section) {
@@ -341,29 +348,35 @@ function getcfgfromxls() {
 
   let filcfgtags = config.exceltools.pathresult + "/" + "cfg_tags.json";
   fs.writeFileSync(filcfgtags, JSON.stringify(cfgtags), "utf8");
-  logmsg(`Файл ${filcfgtags} записано`);
+  //logmsg(`Файл ${filcfgtags} записано`);
+  logmsgar (`Файл ${filcfgtags} записано`, 1, "getcfgfromxls", "MSG", msgarloc);
 
   let filcfgchs = config.exceltools.pathresult + "/" + "cfg_chs.json";
   fs.writeFileSync(filcfgchs, JSON.stringify(cfgchs), "utf8");
-  logmsg(`Файл ${filcfgchs} записано`);
+  //logmsg(`Файл ${filcfgchs} записано`);
+  logmsgar (`Файл ${filcfgchs} записано`, 1, "getcfgfromxls", "MSG", msgarloc);
 
   let filecfgacts = config.exceltools.pathresult + "/" + "cfg_acts.json";
   fs.writeFileSync(filecfgacts, JSON.stringify(cfgacts), "utf8");
-  logmsg(`Файл ${filecfgacts} записано`);
-
+  //logmsg(`Файл ${filecfgacts} записано`);
+  logmsgar (`Файл ${filecfgacts} записано`, 1, "getcfgfromxls", "MSG", msgarloc);
+  
   let filecfgchmap = config.exceltools.pathresult + "/" + "cfg_chmap.json";
   fs.writeFileSync(filecfgchmap, JSON.stringify(cfgchmap), "utf8");
-  logmsg(`Файл ${filecfgchmap} записано`);
+  //logmsg(`Файл ${filecfgchmap} записано`);
+  logmsgar (`Файл ${filecfgchmap} записано`, 1, "getcfgfromxls", "MSG", msgarloc);
 
   reptools.opts.pathresultmd = config.reptools.pathresultmd;
   reptools.repacchscfg(cfgchs, cfgtags);
-  logmsg(`Звіт записано`);
+  //logmsg(`Звіт записано`);
+  logmsgar (`Звіт про канали записано`, 1, "getcfgfromxls", "MSG", msgarloc);
 
   reptools.opts.pathresultmd = config.reptools.pathresultmd + "/acts";
   reptools.repactuators(cfgacts);
-  logmsg(`Звіт записано`);
+  logmsgar (`Звіт про ВМ записано`, 1, "getcfgfromxls", "MSG", msgarloc);
 
-  writetolog(1);
+  //writetolog(1);
+  writetologar(msgarloc, config.exceltools.pathlog + '\\' + 'fromexcel')
   return { cfgchs, cfgtags, cfgacts };
 }
 

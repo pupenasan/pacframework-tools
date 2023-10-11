@@ -8,12 +8,15 @@ iomaptoplcform (cfgchs) - перетворення даних IOMAP в форм�
 getactrtsinfo (cfgtags, cfgtypes) - отримує обєкт-список виконавчих механізмів за мастердата тегами та означеними типами 
 attrlinktag (cfgacts, act, ioname, withoutlink = false) - прив'язка act.io[ioname] до привязаних тегів act за шаблонами типу, якщо withoutlink=false, повертає true якщо знайдено
 syncobs (masterob, newob, deleteoldfields = 0) - синхронізація нового об'єкту з мастерданими, наразі не використовується 
-logmsg (msg, toconsole=1) - виведення повідомлення msg на консоль (при toconsole=1) та в msglog
+logmsg (msg, toconsole=1) - виведення повідомлення msg на консоль (при toconsole=1) та в msglog DEPRECATED
 writetolog (createnew = 0) - виведення msglog в файл, при createnew = 1 - створюється новий файл, перезаписуючи старий 
 */
 const userdir = process.env.userprofile + '/pacframeworktools';
 const path = require ('path');
 const fs = require ('fs');
+const {stringify} = require( 'ini' );
+const {isDate} = require( 'lodash' );
+const msgar = [];
 const opts = {
   inipath: './',
   logpath: 'log',
@@ -28,7 +31,7 @@ function tagsdif (plctags, cfgtags) {
     onlycfg:{cnt:0, tags:{}},
     onlyplc:{cnt:0, tags:{}},
   }};
-  logmsg (`Зведення загального переліку тегів`);
+  logmsgar ('Зведення загального переліку тегів', 'master-tagsdif', 'msg', msgar);
   for (let tagname in plctags.tags) {
     let tags =  difob.listtagsinfo.onlyplc.tags;
     if  (plctags.tags[tagname].state === 'valid') {   
@@ -45,7 +48,7 @@ function tagsdif (plctags, cfgtags) {
       tags[tagname] =  {
         id: cfgtags.tags[tagname].id
       }
-      logmsg (`Тег ${tagname} не знайдений в ПЛК`);
+      logmsgar (`Тег ${tagname} не знайдений в ПЛК`, 1, 'master-tagsdif', 'WRN', msgar);
     } else {
       difob.listtagsinfo.equal.cnt ++;
       difob.listtagsinfo.equal.tags[tagname] =  {
@@ -74,7 +77,7 @@ function chsmap_fromplc (plchs, plctags){
       switch (tag.type) {
         case 'DI':
           if (dimap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${dimap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${dimap[chnum]}`, 1, 'master-chsmap_fromplc', 'WRN', msgar);
             dimap[chnum] += ';' + tagname;
           } else {
             dimap[chnum] = tagname;
@@ -82,7 +85,7 @@ function chsmap_fromplc (plchs, plctags){
           break;
         case 'DO':
           if (domap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${domap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${domap[chnum]}`,1, 'master-chsmap_fromplc', 'WRN', msgar);
             domap[chnum] += ';' + tagname;
           } else {
             domap[chnum] = tagname;
@@ -90,7 +93,7 @@ function chsmap_fromplc (plchs, plctags){
           break;
         case 'AI':
           if (aimap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${aimap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${aimap[chnum]}`,1, 'master-chsmap_fromplc', 'WRN', msgar);
             aimap[chnum] += ';' + tagname;
           } else {
             aimap[chnum] = tagname;
@@ -98,7 +101,7 @@ function chsmap_fromplc (plchs, plctags){
           break;
         case 'AO':
           if (aomap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${aomap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${aomap[chnum]}`,1, 'master-chsmap_fromplc', 'WRN', msgar);
             aomap[chnum] += ';' + tagname;
           } else {
             aomap[chnum] = tagname;
@@ -171,12 +174,12 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
           chdis[chnum] = ch;          
           if (chnum>statistic.dicnt) statistic.dicnt=chnum;   
           if (modul.chdis[chinmod.ch]) {
-            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+            logmsgar (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`,1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
           } else { 
             modul.chdis[chinmod.ch] = chinmod;
           } 
           if (dimap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${dimap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${dimap[chnum]}`,1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
             dimap[chnum] += '; ' + tagname;
           } else {
             dimap[chnum] = tagname;
@@ -186,12 +189,12 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
           chdos[chnum] = ch;
           if (chnum>statistic.docnt) statistic.docnt=chnum;             
           if (modul.chdos[chinmod.ch]) {
-            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+            logmsgar (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`,1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
           } else { 
             modul.chdos[chinmod.ch] = chinmod;
           }         
           if (domap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${domap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${domap[chnum]}`,1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
             domap[chnum] += '; ' + tagname;
           } else {
             domap[chnum] = tagname;
@@ -201,12 +204,12 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
           chais[chnum] = ch; 
           if (chnum>statistic.aicnt) statistic.aicnt=chnum;           
           if (modul.chais[chinmod.ch]) {
-            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+            logmsgar (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`,1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
           } else { 
             modul.chais[chinmod.ch] = chinmod;
           }         
           if (aimap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${aimap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${aimap[chnum]}`,1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
             aimap[chnum] += '; ' + tagname;
           } else {
             aimap[chnum] = tagname;
@@ -216,12 +219,12 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
           chaos[chnum] = ch; 
           if (chnum>statistic.aocnt) statistic.aocnt=chnum; 
           if (modul.chaos[chinmod.ch]) {
-            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+            logmsgar (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`, 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
           } else { 
             modul.chaos[chinmod.ch] = chinmod;
           }        
           if (aomap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${aomap[chnum]}`);
+            logmsgar ('Зведення загального переліку тегів', 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
             aomap[chnum] += '; ' + tagname;
           } else {
             aomap[chnum] = tagname;
@@ -232,12 +235,12 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
           chndis[chnum] = ch;          
           if (chnum>statistic.ndicnt) statistic.ndicnt=chnum;   
           if (modul.chndis[chinmod.ch]) {
-            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+            logmsgar (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`, 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
           } else { 
             modul.chndis[chinmod.ch] = chinmod;
           } 
           if (ndimap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${ndimap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${ndimap[chnum]}`,1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
             ndimap[chnum] += '; ' + tagname;
           } else {
             ndimap[chnum] = tagname;
@@ -247,12 +250,12 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
           chndos[chnum] = ch;
           if (chnum>statistic.ndocnt) statistic.ndocnt=chnum;             
           if (modul.chndos[chinmod.ch]) {
-            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+            logmsgar (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`, 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
           } else { 
             modul.chndos[chinmod.ch] = chinmod;
           }         
           if (ndomap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${ndomap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${ndomap[chnum]}`, 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
             ndomap[chnum] += '; ' + tagname;
           } else {
             ndomap[chnum] = tagname;
@@ -262,12 +265,12 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
           chnais[chnum] = ch; 
           if (chnum>statistic.naicnt) statistic.naicnt=chnum;           
           if (modul.chnais[chinmod.ch]) {
-            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+            logmsgar (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`, 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
           } else { 
             modul.chnais[chinmod.ch] = chinmod;
           }         
           if (naimap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${naimap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${naimap[chnum]}`, 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
             naimap[chnum] += '; ' + tagname;
           } else {
             naimap[chnum] = tagname;
@@ -277,12 +280,12 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
           chnaos[chnum] = ch; 
           if (chnum>statistic.naocnt) statistic.naocnt=chnum; 
           if (modul.chnaos[chinmod.ch]) {
-            logmsg (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`);
+            logmsgar (`WRN: ${tagname} - канал ${chinmod.ch} на модулі ${chinmod.modid} вже зайнтяий іншою змінною`, 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
           } else { 
             modul.chnaos[chinmod.ch] = chinmod;
           }        
           if (naomap[chnum]) {
-            logmsg (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${naomap[chnum]}`);
+            logmsgar (`WRN: Змінна ${tagname} має ту саму адресу каналу що і змінна ${naomap[chnum]}`, 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
             naomap[chnum] += '; ' + tagname;
           } else {
             naomap[chnum] = tagname;
@@ -294,7 +297,7 @@ function chsmap_fromcfgfn (cfgchs, cfgtags, chstype){
       }  
       
     } else { //некоректний номер каналу
-      logmsg (`WRN: Змінна ${tagname} має некоректний номер каналу`);
+      logmsgar (`WRN: Змінна ${tagname} має некоректний номер каналу`, 1, 'master-chsmap_fromcfgfn', 'WRN', msgar);
     } 
     //tag.chid chadr
   }
@@ -338,7 +341,7 @@ function iomapplcform_togenform (chs) {
 function chsmapfn (chsmap, chs, tmpmap, chtype) {
   for (let i=1; i<tmpmap.length; i++) {
     if (!chs[i]) {
-      logmsg (`WRN: Каналу ${chtype}${i} не існує, перевірте правильність задання кількості або номеру каналу`);
+      logmsgar (`WRN: Каналу ${chtype}${i} не існує, перевірте правильність задання кількості або номеру каналу`, 1, 'master-chsmapfn', 'WRN', msgar);
     } else if (tmpmap[i]){
       if (!chs[i].links) chs[i].links = {tags:[]};
       chs[i].links.tags = tmpmap[i].split (';'); 
@@ -374,7 +377,7 @@ function iomaptoplcform (cfgchs) {
     for (let modulename in dev) {
       let module = dev [modulename];
       if (modules[module.modnmb]) {
-        logmsg(`ERR: Модуль з назвою ${modulename} номером ${module.modnmb} в острові ${devname} вже існує з назвою ${modules[module.modnmb].modid}. Перевірте нумерацію модулів`)
+        logmsgar (`ERR: Модуль з назвою ${modulename} номером ${module.modnmb} в острові ${devname} вже існує з назвою ${modules[module.modnmb].modid}. Перевірте нумерацію модулів`, 1, 'master-iomaptoplcform', 'ERR', msgar);
       } else {
         modules[module.modnmb] = module;
         modules[module.modnmb].modid = modulename;
@@ -535,7 +538,7 @@ function getactrtsinfo (cfgtags, cfgtypes) {
   //const acttrprops = masterdata.acttrprops;
   //const actIDs = masterdata.idinfo.acttrs; 
   let actID = 0; //ідентифікатор ВМ 
-  logmsg ('Заповнюю інформацію ВМ з БД тегів', 1); 
+  logmsgar ('Заповнюю інформацію ВМ з БД тегів', 1, 'master-getactrtsinfo', 'msg', msgar);
   for (let tagname in tags) {
     let tag = tags[tagname];
     let actname = tag.props.ACTTR;
@@ -545,7 +548,7 @@ function getactrtsinfo (cfgtags, cfgtypes) {
         actID ++;
         acttrs[actname].id = actID;
         acttrs[actname].links = {tags:{}};
-        logmsg (`Створив ВМ ${actname} з ID=${actID}`, 0); 
+        logmsgar (`Створив ВМ ${actname} з ID=${actID}`, 1, 'master-getactrtsinfo', 'msg', msgar); 
       } 
       let act = acttrs[actname];
       act.links.tags[tagname] = {id:tag.id};  
@@ -553,50 +556,43 @@ function getactrtsinfo (cfgtags, cfgtypes) {
       let actnamear = actname.split('_');
       //перевірка на назву тегу з назвою ВМ
       if ((actnamear[0] !== tagnamear[0]) || (actnamear[1] !== tagnamear[1] && tagnamear[1][0]=== 'A')) {
-        logmsg (`WRN: Нзва тегу ${tagname} не співвідноситься з ${actname}`, 0);         
+        logmsgar (`WRN: Нзва тегу ${tagname} не співвідноситься з ${actname}`, 1, 'master-getactrtsinfo', 'msg', msgar);         
       }
       //встановлення опису ВМ з головної керівної назви 
-      /*
-      if (!act.description && tagnamear[1] && tagnamear[1][0]==='A') { //друге слово починається з A - кейс Енікон
+      if (!act.description && (tag.props.TYPE==='AO' || tag.props.TYPE==='DO' || tag.props.TYPE==='NAO' || tag.props.TYPE==='NDO')) { //кейс PACFramework
         let descr = tag.props.DESCRIPTION;
         let start = descr.search (/\(/); //за опис беремо все що до дужок 
         descr = (start > 0)? descr.substring (0, start): descr ; 
         act.description = descr;
-        logmsg (`Встановив ${actname} назву ${descr}`, 0); 
-      } else */ if (!act.description && (tag.props.TYPE==='AO' || tag.props.TYPE==='DO' || tag.props.TYPE==='NAO' || tag.props.TYPE==='NDO')) { //кейс PACFramework
-        let descr = tag.props.DESCRIPTION;
-        let start = descr.search (/\(/); //за опис беремо все що до дужок 
-        descr = (start > 0)? descr.substring (0, start): descr ; 
-        act.description = descr;
-        logmsg (`Встановив ${actname} назву ${descr}`, 0); 
+        logmsgar (`Встановив ${actname} назву ${descr}`, 1, 'master-getactrtsinfo', 'msg', msgar); 
       } 
       //тип ВМ
       if (tag.props.ACTTYPE && !act.type) {
         act.type = tag.props.ACTTYPE;
-        logmsg (`Встановив ${actname} тип ${act.type}`, 0); 
+        logmsgar (`Встановив ${actname} тип ${act.type}`, 1, 'master-getactrtsinfo', 'msg', msgar); 
       }
       //перевірка на співпадіння типів у комірці та ВМ
       if (tag.props.ACTTYPE !== act.type) {
-        logmsg (`ERR: Нзва типу ${tagname} (${tag.props.ACTTYPE}) не співпадає з ${actname} (${act.type})`, 1);           
+        logmsgar (`ERR: Нзва типу ${tagname} (${tag.props.ACTTYPE}) не співпадає з ${actname} (${act.type})`, 1, 'master-getactrtsinfo', 'ERR', msgar);           
       }   
       //tag.props.SUBS для схема автоматизації, див стару реалізацію      
       //встановлення часу відкриття актуатора
       if (tag.props.TOPN && !act.topn) {
         act.topn = tag.props.TOPN;
-        logmsg (`Встановив ${actname} час відкриття ${act.topn}`, 0); 
+        logmsgar (`Встановив ${actname} час відкриття ${act.topn}`, 0, 'master-getactrtsinfo', 'msg', msgar); 
       }
     }
   }
-  logmsg ('Укомплектовую структуру ВМ', 1); 
+  logmsgar ('Укомплектовую структуру ВМ', 1, 'master-getactrtsinfo', 'msg', msgar); 
   for (let actname in acttrs) {
     let act =  acttrs[actname];
     act.state = 'valid';
     let actnamear = actname.split('_');     
     if (!act.type) {
-      logmsg (`ERR: Не задано тип для ${actname}, ВМ невалідний`, 1)      
+      logmsgar (`ERR: Не задано тип для ${actname}, ВМ невалідний`, 1, 'master-getactrtsinfo', 'ERR', msgar);      
       act.state = 'inv_notype';
     } else if (!cfgacts.types[act.type]) {
-      logmsg (`ERR: Не знайдено тип ${act.type} в списку типів для ${actname}, ВМ невалідний`, 1)      
+      logmsgar (`ERR: Не знайдено тип ${act.type} в списку типів для ${actname}, ВМ невалідний`, 1, 'master-getactrtsinfo', 'ERR', msgar);      
       act.state = 'inv_typenotfound'; 
     } else {
       act.io = {};
@@ -610,7 +606,7 @@ function getactrtsinfo (cfgtags, cfgtypes) {
           tags[foundtagname].links.act = actname + '.' + ioname;    
           continue  
         } else {
-          logmsg (`WRN: ВМ ${actname} (${act.description}) - не знайдено змінну IO ${ioname}`, 0)
+          logmsgar (`WRN: ВМ ${actname} (${act.description}) - не знайдено змінну IO ${ioname}`, 1, 'master-getactrtsinfo', 'WRN', msgar);
           //пошук альтернативних змінних
           //шукаємо у всіх, у яких спільна 1-ша частина
           let found1=false;
@@ -623,7 +619,7 @@ function getactrtsinfo (cfgtags, cfgtypes) {
                 let tagsufix = tagnamear[tagnamear.length-1];               
                 if (tagsufix === iosufix || (tagsufix.search(iosufix)>=0 && tagnamear.length === 2) ) {
                   found1 = true
-                  logmsg (`-> Схожий тег за паттерном ${tagnamefind} (${tags[tagnamefind].description})`, 0)
+                  logmsgar (`ATT: Схожий тег за паттерном ${tagnamefind} (${tags[tagnamefind].description})`, 0, 'master-getactrtsinfo', 'ATT', msgar);
                   break
                 }                  
               }                  
@@ -633,7 +629,7 @@ function getactrtsinfo (cfgtags, cfgtypes) {
       //перевірки невикористаних тегів
       for (let tagname in act.links.tags){
         if (!act.links.tags[tagname].role || act.links.tags[tagname].role.search('io')<0) {
-          logmsg (`WRN: ВМ ${actname} - прив'язана змінна ${tagname} не використовується в IO`, 1)    
+          logmsgar (`WRN: ВМ ${actname} - прив'язана змінна ${tagname} не використовується в IO`, 1, 'master-getactrtsinfo', 'WRN', msgar);    
         }
       }  
     }
@@ -643,16 +639,13 @@ function getactrtsinfo (cfgtags, cfgtypes) {
     } else {
       cfgacts.invalids[act.id] = actname   
     }
-
-    //logmsg ('Записую перехресні звязки на ВМ у теги', 1);
-     
   } 
   //пошук альтернативних тегів в якості ВМ, друга частина яких починається з A
   for (let tagname in tags) {
     let tag = tags[tagname];
     let artagname = tagname.split ('_'); 
     if (artagname[1] && artagname[1][0] === 'A' && (!tag.links || !tag.links.act)) {
-      logmsg (`WRN: Знайдено змінну ${tagname} що потенційно може бути ВМ`, 0)        
+      logmsgar (`ATT: Знайдено змінну ${tagname} що потенційно може бути ВМ`, 0, 'master-tagsdif', 'ATT', msgar);        
     }
   }  
   return cfgacts
@@ -692,27 +685,25 @@ function syncobs (masterob, newob, deleteoldfields = 0) {
   }
   if (isnewobj===true) { //новий об'єкт
     changesob.new = true;
-    logmsg (`Добавлено новий об'єкт ${obname}`,0);
+    logmsgar (`Добавлено новий об'єкт ${obname}`, 0, 'master-syncobs', 'msg', msgar);
     for (let fieldname in newob) {
       masterob[fieldname] = newob[fieldname];
     }   
   } else { //змінено об'єкт
     //перебираємо нові властивості
-    //logmsg (`Шукаю змінені властивості в об'єкті ${obname}`,0);
     for (let fieldname in newob) {
       let newfield = newob[fieldname];//нове поле
       let oldfield = masterob[fieldname];//старе поле
-      //logmsg (JSON.stringify(newob[fieldname]) ,0)
       if (typeof masterob[fieldname] === 'undefined' ) { //властивість тільки з'явилася
         if (!changesob.addfields) changesob.addfields = [];  
         changesob.addfields.push (fieldname);
-        logmsg (`Добавлена нова властивість ${fieldname} в об'єкті ${obname}`,0);
+        logmsgar (`Добавлена нова властивість ${fieldname} в об'єкті ${obname}`, 0,'master-syncobs', 'msg', msgar);
         masterob[fieldname] = newob[fieldname]
       } else {                                          //властивість була
         let jsonold = JSON.stringify(oldfield).toLowerCase();
         let jsonnew = JSON.stringify(newfield).toLowerCase();
         if ( jsonold !== jsonnew) {                   //якщо знайдено зміни
-          logmsg (`Знайдено зміни в ${fieldname} в об'єкті ${obname}`,0);
+          logmsgar (`Знайдено зміни в ${fieldname} в об'єкті ${obname}`, 0, 'master-syncobs', 'msg', msgar);
           let oldrecord = {[fieldname]:[]};
           if (!changesob.changedfrom) changesob.changedfrom = [];
           //перевірка на рівень нижче, якщо це об'єкти
@@ -722,12 +713,12 @@ function syncobs (masterob, newob, deleteoldfields = 0) {
                 let jsonnewi = JSON.stringify(newfield[includefiled]).toLowerCase();
               if ( jsonoldi !== jsonnewi) {
                 oldrecord[fieldname].push ({[includefiled]:oldfield[includefiled]});//добавляємо старі поля
-                logmsg (`Змінена властивість ${fieldname}.${includefiled} в об'єкті ${obname}, старе значення ${jsonoldi} нове значення ${jsonnewi}`, 0);                
+                logmsgar (`Змінена властивість ${fieldname}.${includefiled} в об'єкті ${obname}, старе значення ${jsonoldi} нове значення ${jsonnewi}`, 0, 'master-syncobs', 'msg', msgar);                
               }
             } 
           } else {
             oldrecord[fieldname].push (oldfield);
-            logmsg (`Змінена властивість ${fieldname} в об'єкті ${obname}, старе значення ${jsonold} нове значення ${jsonnew}`, 0);
+            logmsgar (`Змінена властивість ${fieldname} в об'єкті ${obname}, старе значення ${jsonold} нове значення ${jsonnew}`, 0, 'master-tagsdif', 'msg', msgar);
           }
           changesob.changedfrom.push (oldrecord);//добавляємо старі поля     
           masterob[fieldname] = newfield
@@ -741,7 +732,7 @@ function syncobs (masterob, newob, deleteoldfields = 0) {
           if (!changesob.deletedfields) changesob.deletedfields = [];
           changesob.deletedfields.push (fieldname);
           delete masterob.fieldname;
-          logmsg (`Видалено властивість ${fieldname} об'єкту ${obname}`);
+          logmsgar (`Видалено властивість ${fieldname} об'єкту ${obname}`, 1, 'master-syncobs', 'msg', msgar);
         } 
       }      
     }
@@ -758,14 +749,25 @@ function syncobs (masterob, newob, deleteoldfields = 0) {
   } 
 }
 
-//виведення повідомлення msg на консоль (при toconsole=1) та в msglog 
-function logmsg (msg, toconsole=1) {
+//виведення повідомлення msg на консоль (при toconsole=1) та в msglog DEPRECATED 
+function logmsg (msg, toconsole=1, lclmsglog = []) {
   let now = new Date ();
   msg = now.toLocaleTimeString() + '.' + now.getMilliseconds() + ' ' + msg;
   msglog += msg  + '\r\n'; 
   if (toconsole===1) console.log (msg);
+  lclmsglog.push ()
+  return lclmsglog
 }
-//виведення msglog в файл, при createnew = 1 - створюється новий файл 
+
+//виведення повідомлень в масив 
+function logmsgar (msg, toconsole=1, topic='default', category='msg', msgar = []) {
+  let now = new Date ();
+  if (toconsole===1) console.log (now.toLocaleTimeString() + '.' + now.getMilliseconds() + ' ' +  msg);
+  msgar.push ({DT: now, msg: msg, topic: topic, category: category})
+  return msgar
+}
+
+//виведення msglog в файл, при createnew = 1 - створюється новий файл DEPRECATED 
 function writetolog (createnew = 0) {
   let now = new Date ();
   let logfile = opts.logpath + '\\' + opts.logfile;
@@ -781,12 +783,35 @@ function writetolog (createnew = 0) {
   }
 }
 
+function writetologar (msgar, filename) {
+  let now = new Date ();
+  if  (fs.existsSync(path.dirname(filename)) === false) {
+    fs.mkdirSync (path.dirname(filename));
+  } 
+  filename += now.toLocaleString().replace(/[ ]/g,'_').replace(/[:.,]/g,'') + '.log';
+  let msglog = '';
+  for (let msg of msgar) {
+    for (propname in msg) {
+      let propval = msg[propname];
+      if (propname == "DT" ) {
+        ;//msglog +=  propval.toLocaleTimeString() + '\t'
+      } else {
+        msglog += propval + '\t';
+      }
+    }
+    msglog += '\n';
+  } 
+  fs.writeFileSync (filename, msglog, 'utf8');
+
+}
 
 
 
 module.exports = {
   opts, 
-  syncobs, logmsg, writetolog,
+  msgar,
+  syncobs, logmsg, logmsgar, 
+  writetolog, writetologar, 
   getactrtsinfo, chsmap_fromplc, chsmap_fromcfgfn,
   iomaptoplcform, iomapplcform_togenform, 
   tagsdif

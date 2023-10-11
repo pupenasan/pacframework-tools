@@ -5,7 +5,7 @@ const xmlparser = require("xml-js"); //https://www.npmjs.com/package/xml-js
 const ini = require("ini"); //https://github.com/npm/ini#readme
 const config = ini.parse (fs.readFileSync(global.inipath, 'utf-8'));
 const userdir = path.normalize(os.homedir() + "/pacframeworktools");
-const masterdatatools = require("./masterdatatools");
+const masterdatatools = require("../common/masterdatatools");
 
 const opts = {
   logpath: "log",

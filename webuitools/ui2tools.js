@@ -1,8 +1,8 @@
 const mime = require('mime-types')
 let crypto = require('crypto');
 const fs = require ('fs');
-const couchtools = require ('./couchtools'); 
-const masterdatatools = require('./masterdatatools');
+const couchtools = require ('../dbtools/couchtools'); 
+const masterdatatools = require('../common/masterdatatools');
 const modeCfb = require('crypto-js/mode-cfb');
 const { Module } = require('module');
 

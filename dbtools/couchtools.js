@@ -1,5 +1,5 @@
 //https://github.com/apache/couchdb-nano
-const masterdatatools = require('./masterdatatools');
+const masterdatatools = require('../common/masterdatatools');
 //const UI2 = require ('./iotgw/ui2/index.js');
 const opts = {
   user:'',

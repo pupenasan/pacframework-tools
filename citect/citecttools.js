@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const ini = require("ini"); //https://github.com/npm/ini#readme
 const xmlparser = require("xml-js"); //https://www.npmjs.com/package/xml-js
-const masterdatatools = require("./masterdatatools");
+const masterdatatools = require("../common/masterdatatools");
 
 if (!global.userdir) global.userdir = path.normalize(os.homedir() + "/pacframeworktools");
 if (!global.inipath) global.inipath = path.normalize(os.homedir() + "/pacframeworktools/config.ini");

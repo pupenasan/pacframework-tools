@@ -1,9 +1,6 @@
 # source files
 source
-result
-log
-reports
-totia
+wrk
 *.pptx
 *.lnk
 
