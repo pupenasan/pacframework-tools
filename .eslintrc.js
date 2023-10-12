@@ -21,7 +21,11 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 'latest',
   },
+  plugins: [
+    'unused-imports'
+  ],
   rules: {
     'no-unused-vars': 'error',
+    'unused-imports/used-imports': 'error',
   },
 };
