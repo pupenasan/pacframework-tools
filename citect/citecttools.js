@@ -17,7 +17,7 @@ const masterdatatools = require('../common/masterdatatools');
 // скорочені назви функцій
 const { logmsg } = masterdatatools;
 const { writetolog } = masterdatatools;
-const { syncobs } = masterdatatools;
+
 const sqllogdir = `${global.userdir}\\sql`;
 
 let ctprojectpath; let pfwincludepath; let pathmasterdbf; let ctprojectname; let pfwincludename; let cntelemetspergenie; let cntactspergenie; let plcsourcepath; let iodevicename; let eqspacenaming; let
