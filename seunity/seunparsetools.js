@@ -41,7 +41,7 @@ const opts = {
 // скорочені назви функцій
 const { logmsg } = masterdatatools;
 const { writetolog } = masterdatatools;
-const { syncobs } = masterdatatools;
+
 
 const progcodes = {};
 
