@@ -11,11 +11,11 @@ syncobs (masterob, newob, deleteoldfields = 0) - синхронізація но
 logmsg (msg, toconsole=1) - виведення повідомлення msg на консоль (при toconsole=1) та в msglog DEPRECATED
 writetolog (createnew = 0) - виведення msglog в файл, при createnew = 1 - створюється новий файл, перезаписуючи старий
 */
-const userdir = `${process.env.userprofile}/pacframeworktools`;
+
 const path = require('path');
 const fs = require('fs');
-const { stringify } = require('ini');
-const { isDate } = require('lodash');
+
+
 
 const msgar = [];
 const opts = {
