@@ -10,7 +10,7 @@ const opts = {
 
 // скорочені назви функцій
 const { logmsg } = masterdatatools;
-const { writetolog } = masterdatatools;
+
 
 async function doc_toCouchdb(data, dbname, docname) {
   const nano = require('nano')(`http://${opts.user}:${opts.password}@localhost:5984`);
@@ -18,7 +18,7 @@ async function doc_toCouchdb(data, dbname, docname) {
   if (!docname) docname = 'tmpdoc';
 
   try {
-    const response = await nano.db.get(dbname);
+    await nano.db.get(dbname);
   } catch (e) {
     logmsg(`Помилка ${e} при піключенні до БД ${dbname}, створюю нову`);
     if (e.statusCode === 404) {
@@ -28,12 +28,12 @@ async function doc_toCouchdb(data, dbname, docname) {
   const db = nano.use(dbname);
   try {
     const doc = await db.get(docname);
-    const response = await db.insert({ _id: docname, _rev: doc._rev, data });
+    await db.insert({ _id: docname, _rev: doc._rev, data });
     logmsg('Пишу дані в CouchDB ...');
   } catch (e) {
     logmsg(`Помилка ${e} при доступу до документу ${docname}, створюю новий`);
     if (e.statusCode === 404) {
-      const response = await db.insert({ _id: docname, data });
+      await db.insert({ _id: docname, data });
     }
   } finally {
     logmsg('Дані записані в CouchDB');
@@ -54,7 +54,7 @@ async function Couchdb_todoc(dbname, docname) {
     return;
   }
   try {
-    const response = await nano.db.get(dbname);
+    await nano.db.get(dbname);
   } catch (e) {
     logmsg(`Помилка ${e} при піключенні до БД`);
     return;
@@ -91,7 +91,7 @@ async function files_toCouchdb(dbname, docname, files) {
   }
 
   try {
-    const response = await nano.db.get(dbname);
+    await nano.db.get(dbname);
   } catch (e) {
     logmsg(`Помилка ${e} при піключенні до БД ${dbname}`);
     return false;
@@ -103,7 +103,7 @@ async function files_toCouchdb(dbname, docname, files) {
     logmsg(`Помилка ${e} при доступу до документу ${docname}, створюю новий`);
     if (e.statusCode === 404) {
       doc = {};
-      const response = await db.insert({ _id: docname, doc });
+      await db.insert({ _id: docname, doc });
     }
   }
   for (const file of files) {
