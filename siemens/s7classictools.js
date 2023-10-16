@@ -1,6 +1,6 @@
 /* модуль з різноманітними утилітами для роботи з Step7 Classic
  */
-const path = require('path');
+
 const fs = require('fs');
 const iconv = require('iconv-lite');
 
