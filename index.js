@@ -54,7 +54,7 @@ let cfgopts;
 couchtools.opts.user = process.env.COUCH_USER;
 couchtools.opts.password = process.env.COUCH_PASS;
 const { twinname } = config.general;
-let seunplcscfg;
+
 
 const help = ` PACFramework Tools V${pjson.version}, author: Oleksandr Pupena
 команди:
