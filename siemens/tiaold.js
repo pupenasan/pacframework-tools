@@ -1,5 +1,5 @@
 // https://github.com/SheetJS/sheetjs
-const xlsx = require('xlsx');
+
 const fs = require('fs');
 const path = require('path');
 const envvar = require('./const.js');
