@@ -882,8 +882,8 @@ function CHHMI_to_chs(parsedata, chs) {
     chs.chaos = {};
   }
 
-  let adrbyte; let
-    adrbit;
+  //let adrbyte; let
+    //adrbit;
   for (let i = 0; i < CHDIs.length; i++) {
     const id = i.toString();
     if (typeof chs.chdis[id] === 'undefined') chs.chdis[id] = {};
@@ -1032,7 +1032,7 @@ function MODULES_to_chs(dbcmplt, masterchs) {
     return;
   }
   const modules = [];
-  let sadr;
+  
   const datatype = dbcmplt.data.MODULES.type.split('of ')[1];
   for (let i = 0; i < dbcmplt.data.MODULES.data.length; i++) {
     const module = dbcmplt.data.MODULES.data[i];
