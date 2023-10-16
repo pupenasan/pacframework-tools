@@ -2,7 +2,6 @@ const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const xmlparser = require('xml-js'); // https://www.npmjs.com/package/xml-js
-
 // https://github.com/npm/ini#readme
 const userdir = path.normalize(`${os.homedir()}/pacframeworktools`);
 const masterdatatools = require('../common/masterdatatools');
@@ -14,7 +13,6 @@ const opts = {
   source: 'source',
 };
 let memmap; // рошарена змінна для збереження мепінгу усіх змінних на адреси, заповнюється при виклику оновлення тегів
-
 
 masterdatatools.opts.logfile = opts.logfile;
 // скорочені назви функцій

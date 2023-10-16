@@ -1032,7 +1032,6 @@ function MODULES_to_chs(dbcmplt, masterchs) {
     return;
   }
   const modules = [];
-  
   const datatype = dbcmplt.data.MODULES.type.split('of ')[1];
   for (let i = 0; i < dbcmplt.data.MODULES.data.length; i++) {
     const module = dbcmplt.data.MODULES.data[i];

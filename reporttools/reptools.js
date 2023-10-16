@@ -15,7 +15,6 @@ const opts = {
 // формує звіт по властовстям ВМ у проекті
 function repactuators(cfgacts, onlymd = true) {
   const acttrsbytype = {};
-  
   const reppath = `${opts.pathresultmd}/` + 'acttrrep';
   // групування ВМ по підтипу
   for (acttrname in cfgacts.acttrs) {

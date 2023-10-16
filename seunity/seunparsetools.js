@@ -37,12 +37,9 @@ const opts = {
   pathsource: config.seunparsetools.pathsource,
   xeffile: config.seunparsetools.xeffile,
 };
-
 // скорочені назви функцій
 const { logmsg } = masterdatatools;
 const { writetolog } = masterdatatools;
-
-
 const progcodes = {};
 
 function xefparseall() {

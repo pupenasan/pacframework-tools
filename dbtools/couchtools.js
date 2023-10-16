@@ -7,16 +7,12 @@ const opts = {
   logpath: 'log',
   logfile: 'general.log',
 };
-
 // скорочені назви функцій
 const { logmsg } = masterdatatools;
-
-
 async function doc_toCouchdb(data, dbname, docname) {
   const nano = require('nano')(`http://${opts.user}:${opts.password}@localhost:5984`);
   if (!dbname) dbname = 'tmpdb';
   if (!docname) docname = 'tmpdoc';
-
   try {
     await nano.db.get(dbname);
   } catch (e) {
