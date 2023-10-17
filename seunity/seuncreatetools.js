@@ -2,9 +2,7 @@ const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const xmlparser = require('xml-js'); // https://www.npmjs.com/package/xml-js
-const ini = require('ini');
 // https://github.com/npm/ini#readme
-const config = ini.parse(fs.readFileSync(global.inipath, 'utf-8'));
 const userdir = path.normalize(`${os.homedir()}/pacframeworktools`);
 const masterdatatools = require('../common/masterdatatools');
 
@@ -15,41 +13,12 @@ const opts = {
   source: 'source',
 };
 let memmap; // рошарена змінна для збереження мепінгу усіх змінних на адреси, заповнюється при виклику оновлення тегів
-const plctype = config.seuncreatetools.plctype || 'M340';
 
 masterdatatools.opts.logfile = opts.logfile;
 // скорочені назви функцій
 const { logmsg } = masterdatatools;
 
 const xmlxddheader = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
-const jsDDTExchangeFile = {
-  DDTExchangeFile: {
-    fileHeader: {
-      _attributes: {
-        company: 'Schneider Automation',
-        product: 'Unity Pro XL V13.1 - 180823C',
-        dateTime: `date_and_time#${dateTimeSEUN()}`,
-        content: 'Derived Data Type source file',
-        DTDVersion: '41',
-      },
-    },
-    contentHeader: { _attributes: { name: 'Project', version: '0.0.000' } },
-  },
-};
-const jsVariablesExchangeFile = {
-  VariablesExchangeFile: {
-    fileHeader: {
-      _attributes: {
-        company: 'Schneider Automation',
-        product: 'Unity Pro XL V13.1 - 180823C',
-        dateTime: `date_and_time#${dateTimeSEUN()}`,
-        content: 'Variable source file',
-        DTDVersion: '41',
-      },
-    },
-    contentHeader: { _attributes: { name: 'Project', version: '0.0.000' } },
-  },
-};
 const jsSTExchangeFile = {
   STExchangeFile: {
     fileHeader: {
@@ -860,19 +829,15 @@ END_FOR;\n\n`;
   }
   // net
   for (const chnmb in chs.chndis) {
-    const ch = chs.chndis[chnmb];
     bodyNDICHS += `CHDIFN (RAW :=  CHNDI[${chnmb}].STA_VRAW,  CHCFG := CHNDI[${chnmb}],  CHHMI := CHNDI_HMI[${chnmb}],  PLCCFG := PLC, CHBUF := CH_BUF);\n`;
   }
   for (const chnmb in chs.chndos) {
-    const ch = chs.chndos[chnmb];
     bodyNDOCHS += `CHDOFN (CHCFG := CHNDO[${chnmb}],  CHHMI := CHNDO_HMI[${chnmb}],  PLCCFG := PLC, CHBUF := CH_BUF, RAW => CHNDO[${chnmb}].STA_VRAW);\n`;
   }
   for (const chnmb in chs.chnais) {
-    const ch = chs.chnais[chnmb];
     bodyNAICHS += `CHAIFN (RAWINT :=  CHNAI[${chnmb}].VAL, CHCFG := CHNAI[${chnmb}], CHHMI := CHNAI_HMI[${chnmb}], PLCCFG := PLC, CHBUF := CH_BUF);\n`;
   }
   for (const chnmb in chs.chnaos) {
-    const ch = chs.chnaos[chnmb];
     bodyNAOCHS += `CHAOFN (CHCFG := CHNAO[${chnmb}], CHHMI := CHNAO_HMI[${chnmb}], PLCCFG := PLC, CHBUF := CH_BUF, RAWINT => CHNAO[${chnmb}].VAL);\n`;
   }
 
@@ -1300,7 +1265,6 @@ function operatorscreen_dupreplace(filename, prefixin = 'DIH', replacer, newscre
     let i = group.props.end + 1; // починаємо вставку з останнього елементу
     let newlink = '';
     for (let j = 1; j < replacer.length; j++) {
-      const y1 = group.props.y2 + 1;
       const deltay = group.props.y2 - group.props.y1;
       let txtelm = '';
       newlink = replacer[j].main;

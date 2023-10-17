@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { exec, execSync } = require('child_process');
+const { exec } = require('child_process');
 const mdtools = require('./mdtools.js');
 const masterdatattools = require('../common/masterdatatools');
 
@@ -15,7 +15,6 @@ const opts = {
 // формує звіт по властовстям ВМ у проекті
 function repactuators(cfgacts, onlymd = true) {
   const acttrsbytype = {};
-  const acttrtypes = [];
   const reppath = `${opts.pathresultmd}/` + 'acttrrep';
   // групування ВМ по підтипу
   for (acttrname in cfgacts.acttrs) {
